@@ -30,6 +30,9 @@
     <ClInclude Include="Graphic2Project.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Rasterization.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -53,9 +56,7 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Trivial_PS.csh" />
     <FxCompile Include="Trivial_PS.hlsl" />
-    <FxCompile Include="Trivial_VS.csh" />
     <FxCompile Include="Trivial_VS.hlsl" />
   </ItemGroup>
 </Project>

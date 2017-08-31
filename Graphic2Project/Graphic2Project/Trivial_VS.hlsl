@@ -1,35 +1,47 @@
 struct INPUT_VERTEX
 {
-	float2 coordinate : POSITION;
+	float3 coordinate : POSITION;
+	float2 textureUV : TEXTURE;
+	float4 color : COLOR;
 };
 
 struct OUTPUT_VERTEX
 {
-	float4 colorOut : COLOR;
-	float4 projectedCoordinate : SV_POSITION;
+	float4 coordinate : POSITION;
+	float2 textureUV : TEXTURE;	
+	float4 color : COLOR;
 };
 
-// TODO: PART 3 STEP 2a
-cbuffer THIS_IS_VRAM : register( b0 )
+cbuffer FIRST_VRAM : register( b1 )
 {
-	float4 constantColor;
-	float2 constantOffset;
-	float2 padding;
-};
+	matrix View;
+}
 
-OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
+cbuffer SECOND_VRAM : register (b2)
 {
-	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
-	sendToRasterizer.projectedCoordinate.w = 1;
-	
-	sendToRasterizer.projectedCoordinate.xy = fromVertexBuffer.coordinate.xy;
+	matrix Projection;
+}
+
+cbuffer THIRD_VRAM : register (b3)
+{
+	matrix World;
+	float4 meshColor;
+}
+
+OUTPUT_VERTEX main( INPUT_VERTEX input )
+{
+	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
+
+	output.coordinate.w = 1;	
 		
 	// TODO : PART 4 STEP 4
-	sendToRasterizer.projectedCoordinate.xy += constantOffset;
-	
-	// TODO : PART 3 STEP 7
-	sendToRasterizer.colorOut = constantColor;
-	// END PART 3
+	output.coordinate = mul(input.coordinate,World);
 
-	return sendToRasterizer;
+	output.coordinate = mul(input.coordinate, View);
+
+	output.coordinate = mul(input.coordinate, Projection);
+
+	output.textureUV = output.textureUV;
+
+	return output;
 }
