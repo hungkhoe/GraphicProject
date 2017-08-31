@@ -32,16 +32,18 @@ OUTPUT_VERTEX main( INPUT_VERTEX input )
 {
 	OUTPUT_VERTEX output = (OUTPUT_VERTEX)0;
 
-	output.coordinate.w = 1;	
+	output.coordinate.xyz = input.coordinate;
+
+	output.coordinate.w = 1;
 		
 	// TODO : PART 4 STEP 4
-	output.coordinate = mul(input.coordinate,World);
+	output.coordinate = mul(output.coordinate,World);
 
-	output.coordinate = mul(input.coordinate, View);
+	output.coordinate = mul(output.coordinate, View);
 
-	output.coordinate = mul(input.coordinate, Projection);
+	output.coordinate = mul(output.coordinate, Projection);
 
-	output.textureUV = output.textureUV;
+	output.textureUV = input.textureUV;
 
 	return output;
 }
