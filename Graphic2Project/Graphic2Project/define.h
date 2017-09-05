@@ -36,3 +36,11 @@ struct Matrix
 	XMMATRIX Projection;
 
 };
+
+struct Light
+{
+	XMFLOAT3 direction;
+	FLOAT padding;
+	XMFLOAT4 color;
+};
+

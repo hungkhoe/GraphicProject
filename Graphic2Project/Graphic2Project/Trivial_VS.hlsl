@@ -10,10 +10,9 @@ struct INPUT_VERTEX
 struct OUTPUT_VERTEX
 {
 	float4 coordinate : SV_POSITION;
-	float4 colorOut : COLOR0;
-	float2 uv : UV0;
-	float4 normals : NORMAL;
-	
+	float4 colorOut : COLOR;
+	float2 uv : UV;
+	float4 normals : NORMAL;	
 };
 
 cbuffer ConstantMatrixBuffer : register(b0)
@@ -34,7 +33,9 @@ OUTPUT_VERTEX main(INPUT_VERTEX input)
 	output.coordinate = mul(output.coordinate, ProjectionMatrix);	
 
 	output.uv = input.uv;
-	output.normals = input.normals;
+
+	output.normals = mul(float4(input.normals.xyz, 0), WorldMatrix);
+
 	return output;
 }
 

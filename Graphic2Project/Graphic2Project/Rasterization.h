@@ -27,6 +27,8 @@ ID3D11Buffer * fighterBuffer;
 ID3D11Buffer * fighterIndexBuffer;
 ID3D11Buffer * fighterConstantBuffer;
 
+//
+ID3D11Buffer * lightBuffer;
 
 XMMATRIX CubeWorldMatrix;
 XMMATRIX ViewMatrix;
@@ -43,6 +45,8 @@ XMVECTOR ResetEye = Eye;
 XMFLOAT4 m_MeshColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
+Light directionalLight;
+
 //texture
 ID3D11Texture2D * texture2D;
 //zbuffer
@@ -55,12 +59,16 @@ ID3D11ShaderResourceView * cubeTextureResources;
 ID3D11ShaderResourceView * fighterTextureResources;
 
 
+
 //Model
 Object fighter;
 void DrawFighter();
 void InitFighterObject();
 void BoxInit();
 void DrawBox();
+void LightInit();
+void MapDirectionalLight();
+
 void CameraControl()
 {
 if (GetAsyncKeyState(VK_F1)) {
@@ -173,7 +181,7 @@ HRESULT SetUpBuffer() {
 	ViewPort.TopLeftY = 0;	
 
 	// texture loading
-	CreateDDSTextureFromFile(device, L"colorful-triangles-background.dds", NULL, &cubeTextureResources);
+	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &cubeTextureResources);
 	CreateDDSTextureFromFile(device, L"SM_ch_E_Male_Body_Kyoshi.dds", NULL, &fighterTextureResources);
 
 	//sampler state
@@ -207,22 +215,24 @@ HRESULT SetUpBuffer() {
 	
 	BoxInit();
 	InitFighterObject();
+	LightInit();
 
 	// input layout
 	device->CreateInputLayout(layout, nums, Trivial_VS, sizeof(Trivial_VS), &cubeInputLayout);
 
-	// world matrix
+	//cube world matrix
 	CubeWorldMatrix = XMMatrixIdentity();
 
+	//fighter world matrix
 	FighterWorldMatrix = XMMatrixIdentity();
 
 	XMMATRIX translate = XMMatrixTranslation(-5.0f, 0, 0); // move right
 	XMMATRIX scale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
-	XMMATRIX rotate = XMMatrixRotationX(1.0f);
+	//XMMATRIX rotate = XMMatrixRotationX(1.0f);
 
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, translate);
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, scale);
-	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, rotate);
+	//FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, rotate);
 
 	
 
@@ -255,33 +265,45 @@ bool Render() {
 
 	deviceContext->RSSetViewports(1, &ViewPort);
 
+	//rotation for cube
 	CubeWorldMatrix = XMMatrixRotationY(-t);
 
-    FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, XMMatrixRotationY(0.0001f));
+	//rotation for fighter
+    FighterWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f),FighterWorldMatrix);
 
-	deviceContext->ClearRenderTargetView(RTV, Colors::DarkBlue);
+	deviceContext->ClearRenderTargetView(RTV, Colors::DarkCyan);
 
 	deviceContext->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	
+	//send cube matrix to vram
 	Matrix send_matrix_to_vram;
 	send_matrix_to_vram.World = XMMatrixTranspose(CubeWorldMatrix);
 	send_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 	
+	//send fighter matrix to vram
 	Matrix send_fighter_to_vram;
 	send_fighter_to_vram.World = XMMatrixTranspose(FighterWorldMatrix);
 	send_fighter_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_fighter_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 
-	deviceContext->PSSetSamplers(0, 1, &samplerState);	
+	Light send_directional_light_to_vram;
+	send_directional_light_to_vram.color = directionalLight.color;
+	send_directional_light_to_vram.direction = directionalLight.direction;
 
+	//MapDirectionalLight();
+	deviceContext->PSSetSamplers(0, 1, &samplerState);	
 	//Draw
 	DrawBox();
 	DrawFighter();
 
+	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(fighterConstantBuffer, 0, NULL, &send_fighter_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(lightBuffer, 0, NULL, &send_directional_light_to_vram, 0, 0);
 
 	swapChain->Present(0, 0);
 
@@ -292,19 +314,29 @@ void Shutdown()
 {
 	RTV->Release();
 	backBuffer->Release();
-	cubeConstantBuffer->Release();
+	
 
 	cubeInputLayout->Release(); 
-	cubeBuffer->Release();
-	cubeIndexBuffer->Release();
+	
 	cubeVertexShader->Release(); 
 	cubePixelShader->Release();
+
+	fighterBuffer->Release();
+	fighterIndexBuffer->Release();
+	fighterConstantBuffer->Release();
+
+	cubeBuffer->Release();
+	cubeIndexBuffer->Release();
+	cubeConstantBuffer->Release();
+
+	lightBuffer->Release();
 
 	texture2D->Release();
 	depthStencil->Release();
 	samplerState->Release();
+
 	cubeTextureResources->Release();
-	fighterTextureResources->Release();
+	fighterTextureResources->Release();	
 }
 
 void BoxInit()
@@ -312,41 +344,41 @@ void BoxInit()
 	Vert cube[] = {
 
 		// top face
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
 
 		//bottom
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f),XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f),XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f),XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f),XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f) },
+																												
 		// right
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f), XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f) },
 
 		//left
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f),XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f),XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f),XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f),XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f) },
 
 		//front
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f),XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f),XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f),XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f),XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f) },
 
 		//back
 
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f) },
 	};
 
 	// Creating Index
@@ -403,7 +435,7 @@ void DrawBox()
 	unsigned int	strides = sizeof(Vert);
 	unsigned int	offsets = 0;
 
-	deviceContext->IASetVertexBuffers(0, 1, &cubeBuffer, &strides, &offsets);	
+	deviceContext->IASetVertexBuffers(0, 1, &cubeBuffer, &strides, &offsets);		
 
 	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
 
@@ -436,9 +468,7 @@ void InitFighterObject()
 		vertices[i] = fighter.GetModel()[i];
 
 	for (unsigned int i = 0; i < fighter.GetIndex().size(); i++)
-		indicies[i] = fighter.GetIndex()[i];
-
-	// Describes Object Vertex Buffer //
+		indicies[i] = fighter.GetIndex()[i];	
 
 	D3D11_BUFFER_DESC fighterBufferDesc;
 
@@ -452,8 +482,7 @@ void InitFighterObject()
 	fighterSubResources.pSysMem = vertices;
 	fighterSubResources.SysMemPitch = NULL;
 	fighterSubResources.SysMemSlicePitch = NULL;
-
-	// Creating Cube Vertex Buffer // 
+	
 	device->CreateBuffer(&fighterBufferDesc, &fighterSubResources, &fighterBuffer);	
 
 	D3D11_BUFFER_DESC fighterBufferDesc1;
@@ -486,13 +515,13 @@ void DrawFighter()
 	unsigned int	strides = sizeof(Vert);
 	unsigned int	offsets = 0;
 
-	deviceContext->IASetVertexBuffers(0, 1, &fighterBuffer, &strides, &offsets);
-
-	deviceContext->PSSetShaderResources(0, 1, &fighterTextureResources);
-
 	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
 
 	deviceContext->PSSetShader(cubePixelShader, NULL, 0);
+
+	deviceContext->IASetVertexBuffers(0, 1, &fighterBuffer, &strides, &offsets);
+
+	deviceContext->PSSetShaderResources(0, 1, &fighterTextureResources);	
 
 	deviceContext->IASetIndexBuffer(fighterIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
@@ -503,4 +532,38 @@ void DrawFighter()
 	deviceContext->VSSetConstantBuffers(0, 1, &fighterConstantBuffer);	
 
 	deviceContext->DrawIndexed(fighter.GetIndex().size(), 0, 0);
+}
+
+void LightInit()
+{
+	//directional light init value
+
+	directionalLight.color.x = 1.0f;
+	directionalLight.color.y = 1.0f;
+	directionalLight.color.z = 1.0f;
+	directionalLight.color.w = 0.0f;
+
+	directionalLight.direction.x = 1.0f;
+	directionalLight.direction.y = 0.0f;
+	directionalLight.direction.z = 0.0f;
+
+	//directionalLight.padding = 1.0f;
+
+	D3D11_BUFFER_DESC ligthConstbuffdesc;
+
+	ZeroMemory(&ligthConstbuffdesc, sizeof(D3D11_BUFFER_DESC));
+	ligthConstbuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	ligthConstbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+//	ligthConstbuffdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	ligthConstbuffdesc.ByteWidth = sizeof(Light);
+
+	device->CreateBuffer(&ligthConstbuffdesc, nullptr, &lightBuffer);	
+}
+
+void MapDirectionalLight()
+{
+	D3D11_MAPPED_SUBRESOURCE mapSubResource;
+	deviceContext->Map(lightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &mapSubResource);
+	memcpy(mapSubResource.pData, &directionalLight, sizeof(Light));
+	deviceContext->Unmap(lightBuffer, NULL);
 }
