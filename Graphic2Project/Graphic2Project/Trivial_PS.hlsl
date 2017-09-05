@@ -1,31 +1,26 @@
 
-Texture2D texture1: register(t0);
-SamplerState samplerState1 : register(s0);
+
 
 struct OUTPUT_VERTEX
 {
-	float4 coordinate : POSITION;
-	float2 textureUV : TEXTURE;
-	float4 color : COLOR;
+	float4 coordinate : SV_POSITION;
+	float4 colorOut : COLOR0;
+	float2 uv : UV0;
+	
 };
 
-cbuffer FIRST_VRAM : register(b1)
+cbuffer ConstantMatrixBuffer : register(b0)
 {
-	matrix View;
+	matrix WorldMatrix;
+	matrix ViewMatrix;
+	matrix ProjectionMatrix;
+	float4 constantColor;
 }
 
-cbuffer SECOND_VRAM : register (b2)
+// Pixel Shader
+float4 main(OUTPUT_VERTEX input) : SV_TARGET
 {
-	matrix Projection;
+	return input.colorOut;
+
 }
 
-cbuffer THIRD_VRAM : register (b3)
-{
-	matrix World;
-	float4 meshColor;
-}
-
-float4 main(OUTPUT_VERTEX outputRaster) : SV_TARGET
-{
-	return outputRaster.color;
-}
