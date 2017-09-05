@@ -1,24 +1,4 @@
-#include <iostream>
-#include <ctime>
-#include <d3d11.h>
-#include<math.h>
-#pragma comment(lib, "d3d11.lib")
-#include <DirectXMath.h>
-#include <DirectXColors.h>
-#include <DirectXCollision.h>
-#include <DirectXPackedVector.h>
-#include <DirectXPackedVector.h>
-#include<atlbase.h>
-#include "DDSTextureLoader.h"
-
-
-#include "Trivial_VS.csh"
-#include "Trivial_PS.csh"
-
-
-using namespace std;
-using namespace DirectX;
-
+#include "define.h"
 // variable
 
 HWND hWnd;
@@ -36,12 +16,12 @@ ID3D11Buffer* cubeBuffer;
 ID3D11Buffer* indexBuffer;
 ID3D11Buffer*  constantBuffer;
 
-ID3D11VertexShader* 			vertexShader;
-ID3D11PixelShader*				pixelShader;
+ID3D11VertexShader* vertexShader;
+ID3D11PixelShader*	pixelShader;
 
-XMMATRIX						WorldMatrix;
-XMMATRIX						ViewMatrix;
-XMMATRIX						ProjectionMatrix;
+XMMATRIX WorldMatrix;
+XMMATRIX ViewMatrix;
+XMMATRIX ProjectionMatrix;
 
 //View Martix Vectors
 XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
@@ -57,30 +37,6 @@ ID3D11DepthStencilView*	depthStencil;
 
 ID3D11SamplerState*	samplerState;
 ID3D11ShaderResourceView * textureResources;
-
-
-
-//----------------------------------------------------------------------------------------------------------
-// Structures:
-//----------------------------------------------------------------------------------------------------------
-
-struct Vert 
-{
-	XMFLOAT4 points;
-	XMFLOAT4 Color;
-	XMFLOAT2 uvs;
-	XMFLOAT4 normals;
-};
-
-
-struct Matrix
-{
-	XMMATRIX World;
-	XMMATRIX View;
-	XMMATRIX Projection;
-	
-};
-
 
 void CameraControl()
 {

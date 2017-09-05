@@ -166,7 +166,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h" />
+    <ClInclude Include="define.h" />
     <ClInclude Include="Graphic2Project.h" />
+    <ClInclude Include="ObjLoader.h" />
     <ClInclude Include="Rasterization.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -175,6 +177,7 @@
   <ItemGroup>
     <ClCompile Include="DDSTextureLoader.cpp" />
     <ClCompile Include="Graphic2Project.cpp" />
+    <ClCompile Include="ObjLoader.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
