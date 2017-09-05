@@ -193,6 +193,7 @@
     <Image Include="Graphic2Project.ico" />
     <Image Include="greendragon.dds" />
     <Image Include="small.ico" />
+    <Image Include="SM_ch_E_Male_Body_Kyoshi.dds" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Trivial_PS.hlsl">

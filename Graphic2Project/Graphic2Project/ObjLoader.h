@@ -2,7 +2,6 @@
 #include "define.h"
 class Object
 {
-
 	vector<Vert> model;
 	vector<unsigned int> index;
 

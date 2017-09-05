@@ -1,8 +1,6 @@
 #include "stdafx.h"
 #include "ObjLoader.h"
 
-
-
 bool Object::Load(const char * filepath)
 {
 	FILE * file = fopen(filepath, "r");
