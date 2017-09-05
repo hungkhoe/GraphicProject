@@ -9,6 +9,8 @@
 #include <DirectXPackedVector.h>
 #include <DirectXPackedVector.h>
 #include<atlbase.h>
+#include "DDSTextureLoader.h"
+
 
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
@@ -47,13 +49,14 @@ XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
-XMFLOAT4 m_MeshColor = XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+XMFLOAT4 m_MeshColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 
 ID3D11Texture2D* texture2D;
 ID3D11DepthStencilView*	depthStencil;
 
-
+ID3D11SamplerState*	samplerState;
+ID3D11ShaderResourceView * textureResources;
 
 
 
@@ -75,11 +78,60 @@ struct Matrix
 	XMMATRIX World;
 	XMMATRIX View;
 	XMMATRIX Projection;
-	XMFLOAT4 ConstantColor;
+	
 };
 
 
+void CameraControl()
+{
+if (GetAsyncKeyState(VK_F1)) {
+	ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); //reset
+}
 
+if (GetAsyncKeyState(VK_SHIFT)) {
+	XMMATRIX translate = XMMatrixTranslation(0, 0, -0.001f); //zoom
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+
+if (GetAsyncKeyState('W')) {
+	XMMATRIX translate = XMMatrixTranslation(0, -0.001f, 0); // move up
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+if (GetAsyncKeyState('S')) {
+	XMMATRIX translate = XMMatrixTranslation(0, 0.001f, 0); // move down
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+if (GetAsyncKeyState('D')) {
+	XMMATRIX translate = XMMatrixTranslation(-0.001f, 0, 0); // move right
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+if (GetAsyncKeyState('A')) {
+	XMMATRIX translate = XMMatrixTranslation(0.001f, 0, 0); // move left
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+
+if (GetAsyncKeyState(VK_CONTROL)) {
+	XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+}
+
+if (GetAsyncKeyState(VK_UP)) {
+	XMMATRIX rotation = XMMatrixRotationX(0.0001);
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate up
+}
+if (GetAsyncKeyState(VK_DOWN)) {
+	XMMATRIX rotation = XMMatrixRotationX(-0.0001);
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate down
+}
+if (GetAsyncKeyState(VK_LEFT)) {
+	XMMATRIX rotation = XMMatrixRotationY(0.0001);
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate left
+}
+if (GetAsyncKeyState(VK_RIGHT)) {
+	XMMATRIX rotation = XMMatrixRotationY(-0.0001);
+	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate right
+}
+}
 HRESULT SetUpBuffer() {
 
 	RECT rc;
@@ -144,41 +196,41 @@ HRESULT SetUpBuffer() {
 	Vert cube[] = {
 
 		// top face
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
 
 		//bottom
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
 
 		// right
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
 
 		//left
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
 
 		//front
-		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
 
 		//back
 
-		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
-		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
-		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(0.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, -1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f) },
 	};
 
 	// cube buffer
@@ -224,9 +276,20 @@ HRESULT SetUpBuffer() {
 	data.pSysMem = Indexes;
 	device->CreateBuffer(&buffdesc, &data, &indexBuffer);
 
+	// texture loading
+	CreateDDSTextureFromFile(device, L"colorful-triangles-background.dds", NULL, &textureResources);
 
-
-
+	//sampler state
+	D3D11_SAMPLER_DESC sampDesc;
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	device->CreateSamplerState(&sampDesc, &samplerState);
 
 	//create shader
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vertexShader);
@@ -271,13 +334,21 @@ HRESULT SetUpBuffer() {
 //----------------------------------------------------------------------------------------------------------
 bool Render() {	
 
-
+	// Time Per Frame
+	static float t = 0.0f;
+	static ULONGLONG timeStart = 0;
+	ULONGLONG timeCur = GetTickCount64();
+	if (timeStart == 0)
+		timeStart = timeCur;
+	t = (timeCur - timeStart) / 1000.0f;
+		
+	CameraControl();
 
 	deviceContext->OMSetRenderTargets(1, &RTV, depthStencil);
 
 	deviceContext->RSSetViewports(1, &ViewPort);
 
-
+	WorldMatrix = XMMatrixRotationY(t);
 
 	deviceContext->ClearRenderTargetView(RTV, Colors::DarkBlue);
 
@@ -287,7 +358,7 @@ bool Render() {
 	send_matrix_to_vram.World = XMMatrixTranspose(WorldMatrix);
 	send_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
-	send_matrix_to_vram.ConstantColor = m_MeshColor;
+	
 	deviceContext->UpdateSubresource(constantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
 
 	unsigned int	strides = sizeof(Vert);
@@ -307,9 +378,9 @@ bool Render() {
 
 	deviceContext->PSSetShader(pixelShader, NULL, 0);
 	
-	
+    deviceContext->PSSetShaderResources(0, 1, &textureResources);
 
-
+	deviceContext->PSSetSamplers(0, 1, &samplerState);
 
 	deviceContext->DrawIndexed(36, 0, 0);
 
@@ -330,7 +401,8 @@ void Shutdown()
 	vertexShader->Release(); 
 	pixelShader->Release();
 
-
+	texture2D->Release();
 	depthStencil->Release();
-
+	samplerState->Release();
+	textureResources->Release();
 }

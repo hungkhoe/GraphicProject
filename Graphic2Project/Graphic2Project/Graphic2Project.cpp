@@ -48,7 +48,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_GRAPHIC2PROJECT));
 
     MSG msg;
-
+	ZeroMemory(&msg, sizeof(MSG));
     // Main message loop:
 	while (msg.message != WM_QUIT && Render())
 	{
