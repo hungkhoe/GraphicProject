@@ -14,11 +14,17 @@ ID3D11InputLayout* cubeInputLayout;
 
 ID3D11Resource*	backBuffer;
 
-//cube stuff
+//cube buffer
 ID3D11Buffer* cubeBuffer;
 ID3D11Buffer* cubeIndexBuffer;
 ID3D11Buffer* cubeConstantBuffer;
 
+//quad buffer
+ID3D11Buffer* quadBuffer;
+ID3D11Buffer* quadIndexBuffer;
+ID3D11Buffer* quadConstantBuffer;
+
+//shader
 ID3D11VertexShader* cubeVertexShader;
 ID3D11PixelShader*	cubePixelShader;
 
@@ -27,14 +33,21 @@ ID3D11Buffer * fighterBuffer;
 ID3D11Buffer * fighterIndexBuffer;
 ID3D11Buffer * fighterConstantBuffer;
 
-//
-ID3D11Buffer * lightBuffer;
+//light 
+DirectionalLight directionalLight;
+PointLight pointLight;
 
+//lightbuffer
+ID3D11Buffer * lightBuffer;
+ID3D11Buffer * pointLightBuffer;
+
+//world matrix
 XMMATRIX CubeWorldMatrix;
+XMMATRIX FighterWorldMatrix;
+XMMATRIX QuadWorldMatrix;
+
 XMMATRIX ViewMatrix;
 XMMATRIX ProjectionMatrix;
-
-XMMATRIX FighterWorldMatrix;
 
 //matrix
 XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
@@ -44,8 +57,6 @@ XMVECTOR ResetEye = Eye;
 
 XMFLOAT4 m_MeshColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-
-Light directionalLight;
 
 //texture
 ID3D11Texture2D * texture2D;
@@ -58,16 +69,21 @@ ID3D11ShaderResourceView * cubeTextureResources;
 
 ID3D11ShaderResourceView * fighterTextureResources;
 
+ID3D11ShaderResourceView * quadTextureResources;
+
 
 
 //Model
 Object fighter;
 void DrawFighter();
-void InitFighterObject();
+void ObjectInit(const char * filename, Object &model, ID3D11Buffer *& modelBuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *&constantBuffer);
 void BoxInit();
 void DrawBox();
 void LightInit();
-void MapDirectionalLight();
+void PointLightInit();
+void DrawQuad();
+void QuadInit();
+
 
 void CameraControl()
 {
@@ -183,6 +199,7 @@ HRESULT SetUpBuffer() {
 	// texture loading
 	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &cubeTextureResources);
 	CreateDDSTextureFromFile(device, L"SM_ch_E_Male_Body_Kyoshi.dds", NULL, &fighterTextureResources);
+	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &quadTextureResources);
 
 	//sampler state
 	D3D11_SAMPLER_DESC sampDesc;
@@ -214,28 +231,33 @@ HRESULT SetUpBuffer() {
 
 	
 	BoxInit();
-	InitFighterObject();
+	ObjectInit("FighterObject.obj",fighter,fighterBuffer,fighterIndexBuffer,fighterConstantBuffer);
 	LightInit();
+	PointLightInit();
+	QuadInit();
 
 	// input layout
 	device->CreateInputLayout(layout, nums, Trivial_VS, sizeof(Trivial_VS), &cubeInputLayout);
 
 	//cube world matrix
+	XMMATRIX translateCube = XMMatrixTranslation(0, 1.0f, 0); // move right
 	CubeWorldMatrix = XMMatrixIdentity();
+	CubeWorldMatrix = XMMatrixMultiply(CubeWorldMatrix, translateCube);
 
 	//fighter world matrix
-	FighterWorldMatrix = XMMatrixIdentity();
 
 	XMMATRIX translate = XMMatrixTranslation(-5.0f, 0, 0); // move right
 	XMMATRIX scale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
-	//XMMATRIX rotate = XMMatrixRotationX(1.0f);
-
+	FighterWorldMatrix = XMMatrixIdentity();
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, translate);
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, scale);
-	//FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, rotate);
 
-	
-
+	//quad world matrix
+	XMMATRIX translate1 = XMMatrixTranslation(0, -1.0f, 0);
+	XMMATRIX scale1 = XMMatrixScaling(10.0f, 10.0f, 10.0f);
+	QuadWorldMatrix = XMMatrixIdentity();		
+	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, translate1);
+	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, scale1);
 	// view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
@@ -266,7 +288,7 @@ bool Render() {
 	deviceContext->RSSetViewports(1, &ViewPort);
 
 	//rotation for cube
-	CubeWorldMatrix = XMMatrixRotationY(-t);
+	CubeWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f), CubeWorldMatrix);
 
 	//rotation for fighter
     FighterWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f),FighterWorldMatrix);
@@ -280,6 +302,11 @@ bool Render() {
 	send_matrix_to_vram.World = XMMatrixTranspose(CubeWorldMatrix);
 	send_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	Matrix quad_matrix_to_vram;
+	quad_matrix_to_vram.World = XMMatrixTranspose(QuadWorldMatrix);
+	quad_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
+	quad_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 	
 	//send fighter matrix to vram
 	Matrix send_fighter_to_vram;
@@ -287,23 +314,37 @@ bool Render() {
 	send_fighter_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_fighter_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 
-	Light send_directional_light_to_vram;
+	DirectionalLight send_directional_light_to_vram;
 	send_directional_light_to_vram.color = directionalLight.color;
 	send_directional_light_to_vram.direction = directionalLight.direction;
 
+	PointLight send_point_light_to_vram;
+	send_point_light_to_vram.Color = pointLight.Color;
+	send_point_light_to_vram.Position = pointLight.Position;
+	send_point_light_to_vram.Radius = pointLight.Radius;
+
 	//MapDirectionalLight();
 	deviceContext->PSSetSamplers(0, 1, &samplerState);	
+
 	//Draw
+
 	DrawBox();
 	DrawFighter();
+	DrawQuad();
 
 	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
 
+	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(quadConstantBuffer, 0, NULL, &quad_matrix_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(fighterConstantBuffer, 0, NULL, &send_fighter_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(lightBuffer, 0, NULL, &send_directional_light_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(pointLightBuffer, 0, NULL, &send_point_light_to_vram, 0, 0);
 
 	swapChain->Present(0, 0);
 
@@ -330,6 +371,7 @@ void Shutdown()
 	cubeConstantBuffer->Release();
 
 	lightBuffer->Release();
+	pointLightBuffer->Release();
 
 	texture2D->Release();
 	depthStencil->Release();
@@ -430,6 +472,7 @@ void BoxInit()
 	buffdesc.ByteWidth = sizeof(Matrix);
 	device->CreateBuffer(&buffdesc, nullptr, &cubeConstantBuffer);	
 }
+
 void DrawBox()
 {
 	unsigned int	strides = sizeof(Vert);
@@ -454,21 +497,21 @@ void DrawBox()
 	deviceContext->DrawIndexed(36, 0, 0);
 }
 
-void InitFighterObject()
+void ObjectInit(const char * filename, Object & model, ID3D11Buffer *& modelBuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *&constantBuffer)
 {
 	Object tempModel;
-	tempModel.Load("FighterObject.obj");	
-	fighter = tempModel;
+	tempModel.Load(filename);
+	model = tempModel;
 
-	Vert * vertices = new Vert[fighter.GetModel().size()];
-	unsigned int count = fighter.GetIndex().size();
+	Vert * vertices = new Vert[model.GetModel().size()];
+	unsigned int count = model.GetIndex().size();
 	unsigned int * indicies = new unsigned int[count];
 
-	for (unsigned int i = 0; i < fighter.GetModel().size(); i++)
+	for (unsigned int i = 0; i < model.GetModel().size(); i++)
 		vertices[i] = fighter.GetModel()[i];
 
-	for (unsigned int i = 0; i < fighter.GetIndex().size(); i++)
-		indicies[i] = fighter.GetIndex()[i];	
+	for (unsigned int i = 0; i < model.GetIndex().size(); i++)
+		indicies[i] = model.GetIndex()[i];
 
 	D3D11_BUFFER_DESC fighterBufferDesc;
 
@@ -483,7 +526,7 @@ void InitFighterObject()
 	fighterSubResources.SysMemPitch = NULL;
 	fighterSubResources.SysMemSlicePitch = NULL;
 	
-	device->CreateBuffer(&fighterBufferDesc, &fighterSubResources, &fighterBuffer);	
+	device->CreateBuffer(&fighterBufferDesc, &fighterSubResources, &modelBuffer);
 
 	D3D11_BUFFER_DESC fighterBufferDesc1;
 	ZeroMemory(&fighterBufferDesc1, sizeof(D3D11_BUFFER_DESC));	
@@ -495,7 +538,7 @@ void InitFighterObject()
 
 	fighterSubResources.pSysMem = indicies;
 
-	device->CreateBuffer(&fighterBufferDesc1, &fighterSubResources, &fighterIndexBuffer);
+	device->CreateBuffer(&fighterBufferDesc1, &fighterSubResources, &indexbuffer);
 	
 	D3D11_BUFFER_DESC fighterBufferDesc2;
 	ZeroMemory(&fighterBufferDesc2, sizeof(D3D11_BUFFER_DESC));
@@ -504,7 +547,7 @@ void InitFighterObject()
 	fighterBufferDesc2.ByteWidth = sizeof(Matrix);
 	
 
-	device->CreateBuffer(&fighterBufferDesc2, nullptr, &fighterConstantBuffer);
+	device->CreateBuffer(&fighterBufferDesc2, nullptr, &constantBuffer);
 
 	delete[] vertices;
 	delete[] indicies;
@@ -529,7 +572,7 @@ void DrawFighter()
 	
 	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	deviceContext->VSSetConstantBuffers(0, 1, &fighterConstantBuffer);	
+	deviceContext->VSSetConstantBuffers(0, 1, &fighterConstantBuffer);
 
 	deviceContext->DrawIndexed(fighter.GetIndex().size(), 0, 0);
 }
@@ -538,9 +581,9 @@ void LightInit()
 {
 	//directional light init value
 
-	directionalLight.color.x = 1.0f;
-	directionalLight.color.y = 1.0f;
-	directionalLight.color.z = 1.0f;
+	directionalLight.color.x = 255.0f;
+	directionalLight.color.y = 0.0f;
+	directionalLight.color.z = 0.0f;
 	directionalLight.color.w = 0.0f;
 
 	directionalLight.direction.x = 1.0f;
@@ -555,15 +598,102 @@ void LightInit()
 	ligthConstbuffdesc.Usage = D3D11_USAGE_DEFAULT;
 	ligthConstbuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 //	ligthConstbuffdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	ligthConstbuffdesc.ByteWidth = sizeof(Light);
+	ligthConstbuffdesc.ByteWidth = sizeof(DirectionalLight);
 
 	device->CreateBuffer(&ligthConstbuffdesc, nullptr, &lightBuffer);	
 }
 
-void MapDirectionalLight()
+void PointLightInit()
 {
-	D3D11_MAPPED_SUBRESOURCE mapSubResource;
-	deviceContext->Map(lightBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &mapSubResource);
-	memcpy(mapSubResource.pData, &directionalLight, sizeof(Light));
-	deviceContext->Unmap(lightBuffer, NULL);
+	//point light init value
+	pointLight.Color.x = 255.0f;
+	pointLight.Color.y = 255.0f;
+	pointLight.Color.z = 255.0f;
+	pointLight.Color.w = 0.0f;
+
+	pointLight.Position.x = 0;
+	pointLight.Position.y = 3.0f;
+	pointLight.Position.z = -4.0f;
+	pointLight.Position.w = 0;
+	
+	//directionalLight.padding = 1.0f;
+
+	D3D11_BUFFER_DESC pointLightDesc;
+
+	ZeroMemory(&pointLightDesc, sizeof(D3D11_BUFFER_DESC));
+	pointLightDesc.Usage = D3D11_USAGE_DEFAULT;
+	pointLightDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	//	ligthConstbuffdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	pointLightDesc.ByteWidth = sizeof(PointLight);
+
+	device->CreateBuffer(&pointLightDesc, nullptr, &pointLightBuffer);
+}
+
+void QuadInit()
+{
+	Vert quad[] = {
+
+		// top face
+		{ XMFLOAT4(-1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, -1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(0.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT4(-1.0f, 1.0f, 1.0f, 1.0f),		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),		XMFLOAT2(1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f) }
+	};
+
+	UINT32 quadIndexes[] = {
+		3,1,0,
+		2,1,3		
+	};
+
+	// quad buffer
+	D3D11_BUFFER_DESC quadBuffdesc;
+	ZeroMemory(&quadBuffdesc, sizeof(D3D11_BUFFER_DESC));
+	quadBuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	quadBuffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	quadBuffdesc.ByteWidth = sizeof(Vert) * 4;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data1;
+	ZeroMemory(&data1, sizeof(data1));
+	data1.pSysMem = quad;
+
+	// Creating Vertex Buffer
+	device->CreateBuffer(&quadBuffdesc, &data1, &quadBuffer);
+
+	// index buffer
+	quadBuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	quadBuffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	quadBuffdesc.ByteWidth = sizeof(UINT32) * 6;
+	data1.pSysMem = quadIndexes;
+	device->CreateBuffer(&quadBuffdesc, &data1, &quadIndexBuffer);
+
+	// constant
+	quadBuffdesc.Usage = D3D11_USAGE_DEFAULT;
+	quadBuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	quadBuffdesc.ByteWidth = sizeof(Matrix);
+	device->CreateBuffer(&quadBuffdesc, nullptr, &quadConstantBuffer);
+}
+
+void DrawQuad()
+{
+	unsigned int	strides = sizeof(Vert);
+	unsigned int	offsets = 0;
+
+	deviceContext->IASetVertexBuffers(0, 1, &quadBuffer, &strides, &offsets);
+
+	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
+
+	deviceContext->PSSetShader(cubePixelShader, NULL, 0);
+
+	deviceContext->PSSetShaderResources(0, 1, &quadTextureResources);
+
+	deviceContext->IASetInputLayout(cubeInputLayout);
+
+	deviceContext->IASetIndexBuffer(quadIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &quadConstantBuffer);
+
+	deviceContext->DrawIndexed(6, 0, 0);
 }

@@ -13,6 +13,7 @@ struct OUTPUT_VERTEX
 	float4 colorOut : COLOR;
 	float2 uv : UV;
 	float4 normals : NORMAL;	
+	float4 worldPos : WORLD_POS;
 };
 
 cbuffer ConstantMatrixBuffer : register(b0)
@@ -29,12 +30,15 @@ OUTPUT_VERTEX main(INPUT_VERTEX input)
 
 	output.coordinate= mul(output.coordinate, WorldMatrix);
 	
+	output.worldPos = output.coordinate;
+
 	output.coordinate = mul(output.coordinate, ViewMatrix);
 	output.coordinate = mul(output.coordinate, ProjectionMatrix);	
 
 	output.uv = input.uv;
 
 	output.normals = mul(float4(input.normals.xyz, 0), WorldMatrix);
+	output.normals = normalize(output.normals);
 
 	return output;
 }

@@ -37,10 +37,17 @@ struct Matrix
 
 };
 
-struct Light
+struct DirectionalLight
 {
 	XMFLOAT3 direction;
 	FLOAT padding;
 	XMFLOAT4 color;
+};
+
+struct PointLight
+{
+	XMFLOAT4 Position;
+	XMFLOAT4 Color;
+	XMFLOAT4 Radius;
 };
 
