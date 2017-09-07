@@ -50,8 +50,8 @@ XMMATRIX ViewMatrix;
 XMMATRIX ProjectionMatrix;
 
 //matrix
-XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
-XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR Eye = XMVectorSet(0.0f, 5.5f, -5.0f, 0.0f);
+XMVECTOR Focus = XMVectorSet(0.0f, -4.0f, 0.0f, 0.0f);
 XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
@@ -229,15 +229,16 @@ HRESULT SetUpBuffer() {
 	
 	UINT nums = ARRAYSIZE(layout);
 
-	
+	// input layout
+	device->CreateInputLayout(layout, nums, Trivial_VS, sizeof(Trivial_VS), &cubeInputLayout);
+
+	//Init Object
 	BoxInit();
 	ObjectInit("FighterObject.obj",fighter,fighterBuffer,fighterIndexBuffer,fighterConstantBuffer);
 	LightInit();
 	PointLightInit();
 	QuadInit();
 
-	// input layout
-	device->CreateInputLayout(layout, nums, Trivial_VS, sizeof(Trivial_VS), &cubeInputLayout);
 
 	//cube world matrix
 	XMMATRIX translateCube = XMMatrixTranslation(0, 1.0f, 0); // move right
@@ -354,8 +355,7 @@ bool Render() {
 void Shutdown()
 {
 	RTV->Release();
-	backBuffer->Release();
-	
+	backBuffer->Release();	
 
 	cubeInputLayout->Release(); 
 	
@@ -370,6 +370,10 @@ void Shutdown()
 	cubeIndexBuffer->Release();
 	cubeConstantBuffer->Release();
 
+	quadBuffer->Release();
+	quadIndexBuffer->Release();
+	quadConstantBuffer->Release();
+
 	lightBuffer->Release();
 	pointLightBuffer->Release();
 
@@ -379,6 +383,7 @@ void Shutdown()
 
 	cubeTextureResources->Release();
 	fighterTextureResources->Release();	
+	quadTextureResources->Release();
 }
 
 void BoxInit()
@@ -581,10 +586,10 @@ void LightInit()
 {
 	//directional light init value
 
-	directionalLight.color.x = 255.0f;
+	directionalLight.color.x = 5.0f;
 	directionalLight.color.y = 0.0f;
 	directionalLight.color.z = 0.0f;
-	directionalLight.color.w = 0.0f;
+	directionalLight.color.w = 1.0f;
 
 	directionalLight.direction.x = 1.0f;
 	directionalLight.direction.y = 0.0f;
@@ -606,14 +611,14 @@ void LightInit()
 void PointLightInit()
 {
 	//point light init value
-	pointLight.Color.x = 255.0f;
-	pointLight.Color.y = 255.0f;
-	pointLight.Color.z = 255.0f;
+	pointLight.Color.x = 10.0f;
+	pointLight.Color.y = 10.0f;
+	pointLight.Color.z = 10.0f;
 	pointLight.Color.w = 0.0f;
 
-	pointLight.Position.x = 0;
+	pointLight.Position.x = 5;
 	pointLight.Position.y = 3.0f;
-	pointLight.Position.z = -4.0f;
+	pointLight.Position.z = -2.0f;
 	pointLight.Position.w = 0;
 	
 	//directionalLight.padding = 1.0f;

@@ -30,7 +30,7 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	float4 baseColor = tex.Sample(samp,input.uv);
 	
 	//ambient
-	float4 ambient = float4(0.25, 0.25, 0.25, 1);
+	float4 ambient = float4(0.1f, 0.1f, 0.1f, 1);
 
 	//directional light
 	float directionalLightRatio = saturate(dot(-normalize(direction), normalize(input.normal)));
@@ -39,12 +39,12 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	//point light
 	float4 pointLightDirection = normalize(lightPointPostion - input.worldPos);
 	float pointLightratio = saturate(dot(pointLightDirection, input.normal));
-	float pointLightAttenuation = 1.0 - saturate(length(lightPointPostion - input.worldPos) / 10);
-
-	pointLightAttenuation *= pointLightAttenuation;
-	pointLightAttenuation *= pointLightAttenuation;
+	float pointLightAttenuation = 1.0 - saturate(length(lightPointPostion - input.worldPos) / 8);
 
 	//pointLightAttenuation *= pointLightAttenuation;
+	//pointLightAttenuation *= pointLightAttenuation;
+	pointLightAttenuation *= pointLightAttenuation;
+
 	float4 finalPointLight = pointLightratio * lightPointColor * baseColor * pointLightAttenuation;
 	
 	baseColor = saturate(ambient + finalDirectionalLight + finalPointLight);
