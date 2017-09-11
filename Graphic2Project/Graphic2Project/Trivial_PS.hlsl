@@ -25,6 +25,14 @@ cbuffer PointLight:register (b1)
 	float4 lightPointRadius;
 }
 
+cbuffer SpotLight:register (b2)
+{
+	float4 spotLightPosition;
+	float4 spotLightColor;
+	float4 spotLightRadius;
+	float4 spotLightDirection;
+}
+
 float4 main(OUTPUT_VERTEX input) : SV_TARGET
 {
 	float4 baseColor = tex.Sample(samp,input.uv);
@@ -39,15 +47,24 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	//point light
 	float4 pointLightDirection = normalize(lightPointPostion - input.worldPos);
 	float pointLightratio = saturate(dot(pointLightDirection, input.normal));
-	float pointLightAttenuation = 1.0 - saturate(length(lightPointPostion - input.worldPos) / 8);
-
-	//pointLightAttenuation *= pointLightAttenuation;
-	//pointLightAttenuation *= pointLightAttenuation;
+	float pointLightAttenuation = 1.0 - saturate(length(lightPointPostion - input.worldPos) / 8);	
 	pointLightAttenuation *= pointLightAttenuation;
-
 	float4 finalPointLight = pointLightratio * lightPointColor * baseColor * pointLightAttenuation;
+
+	// Spot Light // 
+	float4 LightDirection = normalize(spotLightPosition - input.worldPos);
+	LightDirection.w = 0;
+
+	float surfaceRatio = saturate(dot(-LightDirection, spotLightDirection));
+	float spotfactor = (surfaceRatio > spotLightRadius.x) ? 1 : 0;
+	float spotLightRatio = saturate(dot(LightDirection, input.normal));
+
+	float spotLightAttenuation = 1.0f - saturate(length(spotLightPosition - input.worldPos) / spotLightRadius.z);
+	float spotLightCone = 1.0f - saturate((spotLightRadius.x - surfaceRatio) / (spotLightRadius.x - spotLightRadius.y));
+	spotLightAttenuation *= spotLightAttenuation;
+	float4 finalSpotLight = spotfactor * spotLightRatio * spotLightColor * baseColor * spotLightAttenuation * spotLightCone;
 	
-	baseColor = saturate(ambient + finalDirectionalLight + finalPointLight);
+	baseColor = saturate(ambient + finalDirectionalLight + finalPointLight + finalSpotLight);
 
 	return (baseColor * tex.Sample(samp, input.uv));
 }

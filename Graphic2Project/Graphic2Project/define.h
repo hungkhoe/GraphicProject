@@ -51,3 +51,10 @@ struct PointLight
 	XMFLOAT4 Radius;
 };
 
+struct SpotLight
+{
+	XMFLOAT4 Position;
+	XMFLOAT4 Color;
+	XMFLOAT4 Radius;
+	XMFLOAT4 Direction;
+};

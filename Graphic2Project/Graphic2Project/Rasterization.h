@@ -36,10 +36,12 @@ ID3D11Buffer * fighterConstantBuffer;
 //light 
 DirectionalLight directionalLight;
 PointLight pointLight;
+SpotLight spotLight;
 
 //lightbuffer
 ID3D11Buffer * lightBuffer;
 ID3D11Buffer * pointLightBuffer;
+ID3D11Buffer * spotLightBuffer;
 
 //world matrix
 XMMATRIX CubeWorldMatrix;
@@ -83,6 +85,7 @@ void LightInit();
 void PointLightInit();
 void DrawQuad();
 void QuadInit();
+void SpotLightInit();
 
 
 void CameraControl()
@@ -238,6 +241,7 @@ HRESULT SetUpBuffer() {
 	LightInit();
 	PointLightInit();
 	QuadInit();
+	SpotLightInit();
 
 
 	//cube world matrix
@@ -324,7 +328,13 @@ bool Render() {
 	send_point_light_to_vram.Position = pointLight.Position;
 	send_point_light_to_vram.Radius = pointLight.Radius;
 
-	//MapDirectionalLight();
+	SpotLight send_spot_light_to_vram;
+	send_spot_light_to_vram.Color = spotLight.Color;
+	send_spot_light_to_vram.Radius = spotLight.Radius;
+	send_spot_light_to_vram.Position = spotLight.Position;
+	send_spot_light_to_vram.Direction = spotLight.Direction;
+
+
 	deviceContext->PSSetSamplers(0, 1, &samplerState);	
 
 	//Draw
@@ -333,9 +343,11 @@ bool Render() {
 	DrawFighter();
 	DrawQuad();
 
-	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+	//deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
 
-	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+	//deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+
+	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
 
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
 
@@ -346,6 +358,8 @@ bool Render() {
 	deviceContext->UpdateSubresource(lightBuffer, 0, NULL, &send_directional_light_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(pointLightBuffer, 0, NULL, &send_point_light_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram, 0, 0);
 
 	swapChain->Present(0, 0);
 
@@ -376,6 +390,7 @@ void Shutdown()
 
 	lightBuffer->Release();
 	pointLightBuffer->Release();
+	spotLightBuffer->Release();
 
 	texture2D->Release();
 	depthStencil->Release();
@@ -632,6 +647,25 @@ void PointLightInit()
 	pointLightDesc.ByteWidth = sizeof(PointLight);
 
 	device->CreateBuffer(&pointLightDesc, nullptr, &pointLightBuffer);
+}
+
+void SpotLightInit()
+{
+	spotLight.Position.x = 0; spotLight.Position.y = 3; spotLight.Position.z = 0; spotLight.Position.w = 0;
+	spotLight.Color.x = 20; spotLight.Color.y = 20; spotLight.Color.z = 20; spotLight.Color.w = 1;
+	spotLight.Direction.x = 0; spotLight.Direction.y = -1; spotLight.Direction.z = 0; spotLight.Direction.w = 0;
+	spotLight.Radius.x = .523f; spotLight.Radius.y = .307f; spotLight.Radius.z = 6; spotLight.Radius.w = 0;
+
+	D3D11_BUFFER_DESC spotLightDesc;
+
+	ZeroMemory(&spotLightDesc, sizeof(D3D11_BUFFER_DESC));
+	spotLightDesc.Usage = D3D11_USAGE_DEFAULT;
+	spotLightDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	//	ligthConstbuffdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	spotLightDesc.ByteWidth = sizeof(SpotLight);
+
+	device->CreateBuffer(&spotLightDesc, nullptr, &spotLightBuffer);
+	
 }
 
 void QuadInit()
