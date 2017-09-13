@@ -56,13 +56,10 @@ float4 main(OUTPUT_VERTEX input) : SV_TARGET
 	LightDirection.w = 0;
 
 	float surfaceRatio = saturate(dot(-LightDirection, spotLightDirection));
-	float spotfactor = (surfaceRatio > spotLightRadius.x) ? 1 : 0;
+	float spotfactor = (surfaceRatio > spotLightRadius.y) ? 1 : 0;
 	float spotLightRatio = saturate(dot(LightDirection, input.normal));
-
-	float spotLightAttenuation = 1.0f - saturate(length(spotLightPosition - input.worldPos) / spotLightRadius.z);
-	float spotLightCone = 1.0f - saturate((spotLightRadius.x - surfaceRatio) / (spotLightRadius.x - spotLightRadius.y));
-	spotLightAttenuation *= spotLightAttenuation;
-	float4 finalSpotLight = spotfactor * spotLightRatio * spotLightColor * baseColor * spotLightAttenuation * spotLightCone;
+	float spotLightCone = 1.0f - saturate((spotLightRadius.x - surfaceRatio) / (spotLightRadius.x - spotLightRadius.y));	
+	float4 finalSpotLight = spotfactor * spotLightRatio * spotLightColor * baseColor * spotLightCone;
 	
 	baseColor = saturate(ambient + finalDirectionalLight + finalPointLight + finalSpotLight);
 

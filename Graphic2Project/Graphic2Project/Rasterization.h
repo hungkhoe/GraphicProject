@@ -651,10 +651,10 @@ void PointLightInit()
 
 void SpotLightInit()
 {
-	spotLight.Position.x = 0; spotLight.Position.y = 3; spotLight.Position.z = 0; spotLight.Position.w = 0;
+	spotLight.Position.x = -1.5f; spotLight.Position.y = 5; spotLight.Position.z = 0; spotLight.Position.w = 0;
 	spotLight.Color.x = 20; spotLight.Color.y = 20; spotLight.Color.z = 20; spotLight.Color.w = 1;
-	spotLight.Direction.x = 0; spotLight.Direction.y = -1; spotLight.Direction.z = 0; spotLight.Direction.w = 0;
-	spotLight.Radius.x = .523f; spotLight.Radius.y = .307f; spotLight.Radius.z = 6; spotLight.Radius.w = 0;
+	spotLight.Direction.x = 0.4f; spotLight.Direction.y = -1; spotLight.Direction.z = 0; spotLight.Direction.w = 0;
+	spotLight.Radius.x = .99f; spotLight.Radius.y = .95f; spotLight.Radius.z = 10; spotLight.Radius.w = 0;
 
 	D3D11_BUFFER_DESC spotLightDesc;
 
