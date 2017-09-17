@@ -10,14 +10,22 @@ ID3D11RenderTargetView*	RTV;
 CComPtr<ID3D11DeviceContext> deviceContext;
 D3D11_VIEWPORT ViewPort;
 
+//input layouyt
 ID3D11InputLayout* cubeInputLayout;
+ID3D11InputLayout* SkyBoxInputLayout;
 
+//back buffer
 ID3D11Resource*	backBuffer;
 
 //cube buffer
 ID3D11Buffer* cubeBuffer;
 ID3D11Buffer* cubeIndexBuffer;
 ID3D11Buffer* cubeConstantBuffer;
+
+//skybox buffer
+ID3D11Buffer* skyboxBuffer;
+ID3D11Buffer* skyboxIndexBuffer;
+ID3D11Buffer* skyboxConstantBuffer;
 
 //quad buffer
 ID3D11Buffer* quadBuffer;
@@ -27,6 +35,10 @@ ID3D11Buffer* quadConstantBuffer;
 //shader
 ID3D11VertexShader* cubeVertexShader;
 ID3D11PixelShader*	cubePixelShader;
+
+ID3D11VertexShader* skyboxVertexShader;
+ID3D11PixelShader*	skyboxPixelShader;
+
 
 //fighter stuff
 ID3D11Buffer * fighterBuffer;
@@ -47,6 +59,7 @@ ID3D11Buffer * spotLightBuffer;
 XMMATRIX CubeWorldMatrix;
 XMMATRIX FighterWorldMatrix;
 XMMATRIX QuadWorldMatrix;
+XMMATRIX SkyBoxMatrix;
 
 XMMATRIX ViewMatrix;
 XMMATRIX ProjectionMatrix;
@@ -73,10 +86,12 @@ ID3D11ShaderResourceView * fighterTextureResources;
 
 ID3D11ShaderResourceView * quadTextureResources;
 
+ID3D11ShaderResourceView * skyboxTextureResources;
 
 
 //Model
 Object fighter;
+
 void DrawFighter();
 void ObjectInit(const char * filename, Object &model, ID3D11Buffer *& modelBuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *&constantBuffer);
 void BoxInit();
@@ -86,7 +101,8 @@ void PointLightInit();
 void DrawQuad();
 void QuadInit();
 void SpotLightInit();
-
+void SkyBoxInit();
+void DrawSkyBox();
 
 void CameraControl()
 {
@@ -203,6 +219,8 @@ HRESULT SetUpBuffer() {
 	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &cubeTextureResources);
 	CreateDDSTextureFromFile(device, L"SM_ch_E_Male_Body_Kyoshi.dds", NULL, &fighterTextureResources);
 	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &quadTextureResources);
+	CreateDDSTextureFromFile(device, L"SunsetSkybox.dds", NULL, &skyboxTextureResources);
+
 
 	//sampler state
 	D3D11_SAMPLER_DESC sampDesc;
@@ -220,6 +238,9 @@ HRESULT SetUpBuffer() {
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &cubeVertexShader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &cubePixelShader);
 
+	device->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &skyboxVertexShader);
+	device->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &skyboxPixelShader);
+
 
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
@@ -229,11 +250,18 @@ HRESULT SetUpBuffer() {
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
-	
+
 	UINT nums = ARRAYSIZE(layout);
+
+	D3D11_INPUT_ELEMENT_DESC skyLayout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+
 
 	// input layout
 	device->CreateInputLayout(layout, nums, Trivial_VS, sizeof(Trivial_VS), &cubeInputLayout);
+	device->CreateInputLayout(skyLayout, ARRAYSIZE(skyLayout), SkyBox_VS, sizeof(SkyBox_VS), &SkyBoxInputLayout);
 
 	//Init Object
 	BoxInit();
@@ -242,6 +270,7 @@ HRESULT SetUpBuffer() {
 	PointLightInit();
 	QuadInit();
 	SpotLightInit();
+	SkyBoxInit();
 
 
 	//cube world matrix
@@ -250,7 +279,6 @@ HRESULT SetUpBuffer() {
 	CubeWorldMatrix = XMMatrixMultiply(CubeWorldMatrix, translateCube);
 
 	//fighter world matrix
-
 	XMMATRIX translate = XMMatrixTranslation(-5.0f, 0, 0); // move right
 	XMMATRIX scale = XMMatrixScaling(0.5f, 0.5f, 0.5f);
 	FighterWorldMatrix = XMMatrixIdentity();
@@ -263,11 +291,15 @@ HRESULT SetUpBuffer() {
 	QuadWorldMatrix = XMMatrixIdentity();		
 	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, translate1);
 	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, scale1);
+
+	//skybox world matrix
+	SkyBoxMatrix = XMMatrixIdentity();
+
 	// view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 
 	//projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 100.0f);
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 250.0f);
 
 	return S_OK;
 }
@@ -308,6 +340,13 @@ bool Render() {
 	send_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
 	send_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 
+	//send skybox matrix to vram
+	Matrix send_skybox_to_vram;
+	send_skybox_to_vram.World = XMMatrixTranspose(SkyBoxMatrix);
+	send_skybox_to_vram.View = XMMatrixTranspose(ViewMatrix);
+	send_skybox_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send quad to vram
 	Matrix quad_matrix_to_vram;
 	quad_matrix_to_vram.World = XMMatrixTranspose(QuadWorldMatrix);
 	quad_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
@@ -342,14 +381,17 @@ bool Render() {
 	DrawBox();
 	DrawFighter();
 	DrawQuad();
+	DrawSkyBox();	
 
-	//deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
 
-	//deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
 
 	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
 
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(skyboxConstantBuffer, 0, NULL, &send_skybox_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(quadConstantBuffer, 0, NULL, &quad_matrix_to_vram, 0, 0);
 
@@ -372,9 +414,17 @@ void Shutdown()
 	backBuffer->Release();	
 
 	cubeInputLayout->Release(); 
+	//SkyBoxInputLayOut->Release();
 	
 	cubeVertexShader->Release(); 
 	cubePixelShader->Release();
+
+	//skyboxPixelShader->Release();
+	//skyboxVertexShader->Release();
+
+	/*skyboxBuffer->Release();
+	skyboxConstantBuffer->Release();
+	skyboxIndexBuffer->Release();*/
 
 	fighterBuffer->Release();
 	fighterIndexBuffer->Release();
@@ -399,6 +449,7 @@ void Shutdown()
 	cubeTextureResources->Release();
 	fighterTextureResources->Release();	
 	quadTextureResources->Release();
+	//skyboxTextureResources->Release();
 }
 
 void BoxInit()
@@ -626,12 +677,12 @@ void LightInit()
 void PointLightInit()
 {
 	//point light init value
-	pointLight.Color.x = 10.0f;
-	pointLight.Color.y = 10.0f;
-	pointLight.Color.z = 10.0f;
+	pointLight.Color.x = 0.0f;
+	pointLight.Color.y = 20.0f;
+	pointLight.Color.z = 0.0f;
 	pointLight.Color.w = 0.0f;
 
-	pointLight.Position.x = 5;
+	pointLight.Position.x = 0;
 	pointLight.Position.y = 3.0f;
 	pointLight.Position.z = -2.0f;
 	pointLight.Position.w = 0;
@@ -651,10 +702,25 @@ void PointLightInit()
 
 void SpotLightInit()
 {
-	spotLight.Position.x = -1.5f; spotLight.Position.y = 5; spotLight.Position.z = 0; spotLight.Position.w = 0;
-	spotLight.Color.x = 20; spotLight.Color.y = 20; spotLight.Color.z = 20; spotLight.Color.w = 1;
-	spotLight.Direction.x = 0.4f; spotLight.Direction.y = -1; spotLight.Direction.z = 0; spotLight.Direction.w = 0;
-	spotLight.Radius.x = .99f; spotLight.Radius.y = .95f; spotLight.Radius.z = 10; spotLight.Radius.w = 0;
+	spotLight.Position.x = 2.5f; 
+	spotLight.Position.y = 5; 
+	spotLight.Position.z = 0; 
+	spotLight.Position.w = 0;
+
+	spotLight.Color.x = 5; 
+	spotLight.Color.y = 5; 
+	spotLight.Color.z = 5;
+	spotLight.Color.w = 1;
+
+	spotLight.Direction.x = -0.4f; 
+	spotLight.Direction.y = -1; 
+	spotLight.Direction.z = 0; 
+	spotLight.Direction.w = 0;
+
+	spotLight.Radius.x = .99f;
+	spotLight.Radius.y = .90f; 
+	spotLight.Radius.z = 10; 
+	spotLight.Radius.w = 0;
 
 	D3D11_BUFFER_DESC spotLightDesc;
 
@@ -736,3 +802,114 @@ void DrawQuad()
 
 	deviceContext->DrawIndexed(6, 0, 0);
 }
+
+void SkyBoxInit()
+{
+	SkyBox Box[] =
+	{
+		XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),
+		XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),
+
+		XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),
+		XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),
+
+		XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),
+		XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),
+
+		XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),
+		XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),
+		XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),
+		//////
+		XMFLOAT4(-100.0f, -100.0f, 100.0f, 1.0f),
+		XMFLOAT4(100.0f, -100.0f, 100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, 100.0f, 1.0f),
+		XMFLOAT4(-100.0f, 100.0f, 100.0f, 1.0f),
+		//////
+		XMFLOAT4(-100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, -100.0f, -100.0f, 1.0f),
+		XMFLOAT4(100.0f, 100.0f, -100.0f, 1.0f),
+		XMFLOAT4(-100.0f, 100.0f, -100.0f, 1.0f),
+	};
+
+	UINT32 buffer[] =
+	{
+		// Front // 
+		3,1,0,
+		2,1,3,
+
+		6,4,5,
+		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
+	};
+	
+	//sky buffer desc
+	D3D11_BUFFER_DESC buffdesc;
+	ZeroMemory(&buffdesc, sizeof(D3D11_BUFFER_DESC));
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(SkyBox) * 24;
+
+	// Initializing SubSource
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.pSysMem = Box;
+
+	// Creating Vertex Buffer
+	device->CreateBuffer(&buffdesc, &data, &skyboxBuffer);
+
+	// index buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	buffdesc.ByteWidth = sizeof(UINT32) * 36;
+	data.pSysMem = buffer;
+	device->CreateBuffer(&buffdesc, &data, &skyboxIndexBuffer);
+
+	// constant buffer
+	buffdesc.Usage = D3D11_USAGE_DEFAULT;
+	buffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	buffdesc.ByteWidth = sizeof(Matrix);
+	device->CreateBuffer(&buffdesc, nullptr, &skyboxConstantBuffer);
+}
+
+void DrawSkyBox()
+{
+	unsigned int	strides = sizeof(SkyBox);
+	unsigned int	offsets = 0;
+
+	deviceContext->IASetVertexBuffers(0, 1, &skyboxBuffer, &strides, &offsets);
+
+	deviceContext->VSSetShader(skyboxVertexShader, NULL, 0);
+
+	deviceContext->PSSetShader(skyboxPixelShader, NULL, 0);
+
+	deviceContext->PSSetShaderResources(0, 1, &skyboxTextureResources);
+
+	deviceContext->IASetInputLayout(SkyBoxInputLayout);
+
+	deviceContext->IASetIndexBuffer(skyboxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &skyboxConstantBuffer);
+
+	deviceContext->DrawIndexed(36, 0, 0);
+}
+

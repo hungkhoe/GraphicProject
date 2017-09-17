@@ -16,6 +16,9 @@
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
 
+#include "SkyBox_VS.csh"
+#include "SkyBox_PS.csh"
+
 
 using namespace std;
 using namespace DirectX;
@@ -57,4 +60,9 @@ struct SpotLight
 	XMFLOAT4 Color;
 	XMFLOAT4 Radius;
 	XMFLOAT4 Direction;
+};
+
+struct SkyBox
+{
+	XMFLOAT4 coordination;
 };
