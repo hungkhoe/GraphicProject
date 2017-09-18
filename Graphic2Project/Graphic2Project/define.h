@@ -1,4 +1,6 @@
 #pragma once
+#define SCREENWIDTH 1024
+#define SCREENHEIGHT 1024
 #include <iostream>
 #include <ctime>
 #include <d3d11.h>
@@ -18,6 +20,9 @@
 
 #include "SkyBox_VS.csh"
 #include "SkyBox_PS.csh"
+
+#include "GeometryShader.csh"
+#include "Geometry_PS.csh"
 
 
 using namespace std;

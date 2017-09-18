@@ -78,5 +78,8 @@
     <FxCompile Include="Trivial_VS.hlsl" />
     <FxCompile Include="SkyBox_PS.hlsl" />
     <FxCompile Include="SkyBox_VS.hlsl" />
+    <FxCompile Include="GeometryShader.hlsl" />
+    <FxCompile Include="Geometry_VS.hlsl" />
+    <FxCompile Include="Geometry_PS.hlsl" />
   </ItemGroup>
 </Project>

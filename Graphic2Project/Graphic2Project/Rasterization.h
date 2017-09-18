@@ -39,11 +39,18 @@ ID3D11PixelShader*	cubePixelShader;
 ID3D11VertexShader* skyboxVertexShader;
 ID3D11PixelShader*	skyboxPixelShader;
 
+ID3D11GeometryShader * geometryShader;
+ID3D11PixelShader * geometryPixelShader;
 
 //fighter stuff
 ID3D11Buffer * fighterBuffer;
 ID3D11Buffer * fighterIndexBuffer;
 ID3D11Buffer * fighterConstantBuffer;
+
+//geometry buffer
+ID3D11Buffer * geometryBuffer;
+ID3D11Buffer * geometryIndexBuffer;
+ID3D11Buffer * geometryConstantBuffer;
 
 //light 
 DirectionalLight directionalLight;
@@ -60,13 +67,16 @@ XMMATRIX CubeWorldMatrix;
 XMMATRIX FighterWorldMatrix;
 XMMATRIX QuadWorldMatrix;
 XMMATRIX SkyBoxMatrix;
+XMMATRIX GeometryMatrix;
 
 XMMATRIX ViewMatrix;
+XMMATRIX GeoViewMatrix;
+XMMATRIX GeoProjectionMatrix;
 XMMATRIX ProjectionMatrix;
 
 //matrix
-XMVECTOR Eye = XMVectorSet(0.0f, 5.5f, -5.0f, 0.0f);
-XMVECTOR Focus = XMVectorSet(0.0f, -4.0f, 0.0f, 0.0f);
+XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
+XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
@@ -88,9 +98,18 @@ ID3D11ShaderResourceView * quadTextureResources;
 
 ID3D11ShaderResourceView * skyboxTextureResources;
 
+//map stuff
+ID3D11Texture2D* renderTargetTextureMap;
+ID3D11RenderTargetView* renderTargetViewMap;
+ID3D11ShaderResourceView* shaderResourceViewMap;
+
 
 //Model
 Object fighter;
+
+float zoom = 2;
+float nearPlane = 0.1f;
+float farPlane = 250.0f;
 
 void DrawFighter();
 void ObjectInit(const char * filename, Object &model, ID3D11Buffer *& modelBuffer, ID3D11Buffer *& indexbuffer, ID3D11Buffer *&constantBuffer);
@@ -103,56 +122,98 @@ void QuadInit();
 void SpotLightInit();
 void SkyBoxInit();
 void DrawSkyBox();
+void DrawGeometry();
+void MapTextureInit();
 
 void CameraControl()
 {
-if (GetAsyncKeyState(VK_F1)) {
-	ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); //reset
-}
+	if (GetAsyncKeyState(VK_F1)) {
+		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); //reset
+	}
 
-if (GetAsyncKeyState(VK_SHIFT)) {
-	XMMATRIX translate = XMMatrixTranslation(0, 0, -0.001f); //zoom
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
+	if (GetAsyncKeyState(VK_SHIFT)) {
+		XMMATRIX translate = XMMatrixTranslation(0, 0, -0.001f); //zoom
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
 
-if (GetAsyncKeyState('W')) {
-	XMMATRIX translate = XMMatrixTranslation(0, -0.001f, 0); // move up
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
-if (GetAsyncKeyState('S')) {
-	XMMATRIX translate = XMMatrixTranslation(0, 0.001f, 0); // move down
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
-if (GetAsyncKeyState('D')) {
-	XMMATRIX translate = XMMatrixTranslation(-0.001f, 0, 0); // move right
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
-if (GetAsyncKeyState('A')) {
-	XMMATRIX translate = XMMatrixTranslation(0.001f, 0, 0); // move left
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
+	if (GetAsyncKeyState('W')) {
+		XMMATRIX translate = XMMatrixTranslation(0, -0.001f, 0); // move up
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
+	if (GetAsyncKeyState('S')) {
+		XMMATRIX translate = XMMatrixTranslation(0, 0.001f, 0); // move down
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
+	if (GetAsyncKeyState('D')) {
+		XMMATRIX translate = XMMatrixTranslation(-0.001f, 0, 0); // move right
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
+	if (GetAsyncKeyState('A')) {
+		XMMATRIX translate = XMMatrixTranslation(0.001f, 0, 0); // move left
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
 
-if (GetAsyncKeyState(VK_CONTROL)) {
-	XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-}
+	if (GetAsyncKeyState(VK_CONTROL)) {
+		XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
 
-if (GetAsyncKeyState(VK_UP)) {
-	XMMATRIX rotation = XMMatrixRotationX(0.0001);
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate up
-}
-if (GetAsyncKeyState(VK_DOWN)) {
-	XMMATRIX rotation = XMMatrixRotationX(-0.0001);
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate down
-}
-if (GetAsyncKeyState(VK_LEFT)) {
-	XMMATRIX rotation = XMMatrixRotationY(0.0001);
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate left
-}
-if (GetAsyncKeyState(VK_RIGHT)) {
-	XMMATRIX rotation = XMMatrixRotationY(-0.0001);
-	ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate right
-}
+	if (GetAsyncKeyState(VK_UP)) {
+		XMMATRIX rotation = XMMatrixRotationX(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate up
+	}
+	if (GetAsyncKeyState(VK_DOWN)) {
+		XMMATRIX rotation = XMMatrixRotationX(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate down
+	}
+	if (GetAsyncKeyState(VK_LEFT)) {
+		XMMATRIX rotation = XMMatrixRotationY(0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate left
+	}
+	if (GetAsyncKeyState(VK_RIGHT)) {
+		XMMATRIX rotation = XMMatrixRotationY(-0.0001);
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate right
+	}
+
+	if (GetAsyncKeyState('Q') & 0x1)
+	{
+		zoom += 0.05f; // zoom in
+	}
+
+	if (GetAsyncKeyState('E') & 0x1)
+	{
+		if(zoom > 1.1f)
+		zoom -= 0.05f; // zoom out
+	}
+
+	if (GetAsyncKeyState('Z') & 0x1) // nearplane ++
+	{
+		nearPlane += 0.05f; 
+	}
+
+	if (GetAsyncKeyState('X') & 0x1) // nearplane --
+	{
+		if(nearPlane > 0.11)
+		nearPlane -= 0.05f;
+	
+	}
+
+	if (GetAsyncKeyState('C') & 0x1) // farPlane ++
+	{		
+		farPlane += 5.0f;	
+	}
+
+	if (GetAsyncKeyState('V') & 0x1) // farPlane --
+	{		
+		farPlane -= 5.0f;
+		if (farPlane < 0.1f)
+		{
+			farPlane = 1.0f;
+		}
+	}
+
+	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / zoom, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
+
 }
 
 HRESULT SetUpBuffer() {
@@ -215,11 +276,14 @@ HRESULT SetUpBuffer() {
 	ViewPort.TopLeftX = 0;
 	ViewPort.TopLeftY = 0;	
 
+	//map mini
+	MapTextureInit();
+
 	// texture loading
 	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &cubeTextureResources);
 	CreateDDSTextureFromFile(device, L"SM_ch_E_Male_Body_Kyoshi.dds", NULL, &fighterTextureResources);
 	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &quadTextureResources);
-	CreateDDSTextureFromFile(device, L"SunsetSkybox.dds", NULL, &skyboxTextureResources);
+	CreateDDSTextureFromFile(device, L"OutputCube.dds", NULL, &skyboxTextureResources);
 
 
 	//sampler state
@@ -240,6 +304,9 @@ HRESULT SetUpBuffer() {
 
 	device->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &skyboxVertexShader);
 	device->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &skyboxPixelShader);
+
+	device->CreateGeometryShader(GeometryShader, sizeof(GeometryShader), NULL, &geometryShader);
+	device->CreatePixelShader(Geometry_PS, sizeof(Geometry_PS), NULL, &geometryPixelShader);
 
 
 	D3D11_INPUT_ELEMENT_DESC layout[] =
@@ -295,12 +362,15 @@ HRESULT SetUpBuffer() {
 	//skybox world matrix
 	SkyBoxMatrix = XMMatrixIdentity();
 
+	// geometry worldmatrix
+	GeometryMatrix = XMMatrixIdentity();
+
 	// view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-
+	GeoViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f), Focus, Up);
+	
 	//projection matrix
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / static_cast<float>(height), 0.01f, 250.0f);
-
+	GeoProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
 	return S_OK;
 }
 
@@ -332,31 +402,45 @@ bool Render() {
 
 	deviceContext->ClearRenderTargetView(RTV, Colors::DarkCyan);
 
+	deviceContext->ClearRenderTargetView(renderTargetViewMap, Colors::DarkCyan);
+
 	deviceContext->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+
+	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+
+	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
 	
 	//send cube matrix to vram
 	Matrix send_matrix_to_vram;
 	send_matrix_to_vram.World = XMMatrixTranspose(CubeWorldMatrix);
-	send_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
-	send_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+	send_matrix_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_matrix_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
 
 	//send skybox matrix to vram
 	Matrix send_skybox_to_vram;
 	send_skybox_to_vram.World = XMMatrixTranspose(SkyBoxMatrix);
-	send_skybox_to_vram.View = XMMatrixTranspose(ViewMatrix);
-	send_skybox_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+	send_skybox_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_skybox_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
 
 	//send quad to vram
 	Matrix quad_matrix_to_vram;
 	quad_matrix_to_vram.World = XMMatrixTranspose(QuadWorldMatrix);
-	quad_matrix_to_vram.View = XMMatrixTranspose(ViewMatrix);
-	quad_matrix_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+	quad_matrix_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	quad_matrix_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
+
+	//send geometry to vram
+	Matrix geometry_matrix_to_vram;
+	geometry_matrix_to_vram.World = XMMatrixTranspose(GeometryMatrix);
+	geometry_matrix_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	geometry_matrix_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
 	
 	//send fighter matrix to vram
 	Matrix send_fighter_to_vram;
 	send_fighter_to_vram.World = XMMatrixTranspose(FighterWorldMatrix);
-	send_fighter_to_vram.View = XMMatrixTranspose(ViewMatrix);
-	send_fighter_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
+	send_fighter_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_fighter_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
 
 	DirectionalLight send_directional_light_to_vram;
 	send_directional_light_to_vram.color = directionalLight.color;
@@ -373,21 +457,13 @@ bool Render() {
 	send_spot_light_to_vram.Position = spotLight.Position;
 	send_spot_light_to_vram.Direction = spotLight.Direction;
 
-
 	deviceContext->PSSetSamplers(0, 1, &samplerState);	
-
 	//Draw
 
 	DrawBox();
 	DrawFighter();
 	DrawQuad();
-	DrawSkyBox();	
-
-	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
-
-	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
-
-	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
+	DrawSkyBox();		
 
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
 
@@ -403,6 +479,92 @@ bool Render() {
 
 	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram, 0, 0);
 
+	deviceContext->UpdateSubresource(geometryConstantBuffer, 0, NULL, &geometry_matrix_to_vram, 0, 0);
+
+
+	deviceContext->OMSetRenderTargets(1, &RTV, NULL);
+	ID3D11ShaderResourceView * temp = nullptr;
+	deviceContext->PSSetShaderResources(NULL, 1, &temp);
+	deviceContext->OMSetRenderTargets(1, &renderTargetViewMap, NULL);
+
+	//send cube matrix to vram
+	Matrix send_matrix_to_vram1;
+	send_matrix_to_vram1.World = XMMatrixTranspose(CubeWorldMatrix);
+	send_matrix_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_matrix_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send skybox matrix to vram
+	Matrix send_skybox_to_vram1;
+	send_skybox_to_vram1.World = XMMatrixTranspose(SkyBoxMatrix);
+	send_skybox_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_skybox_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send quad to vram
+	Matrix quad_matrix_to_vram1;
+	quad_matrix_to_vram1.World = XMMatrixTranspose(QuadWorldMatrix);
+	quad_matrix_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	quad_matrix_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send fighter matrix to vram
+	Matrix send_fighter_to_vram1;
+	send_fighter_to_vram1.World = XMMatrixTranspose(FighterWorldMatrix);
+	send_fighter_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_fighter_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send geometry to vram
+	Matrix geometry_matrix_to_vram1;
+	geometry_matrix_to_vram1.World = XMMatrixTranspose(GeometryMatrix);
+	geometry_matrix_to_vram1.View = XMMatrixTranspose(GeoViewMatrix);
+	geometry_matrix_to_vram1.Projection = XMMatrixTranspose(GeoProjectionMatrix);
+
+	DirectionalLight send_directional_light_to_vram1;
+	send_directional_light_to_vram1.color = directionalLight.color;
+	send_directional_light_to_vram1.direction = directionalLight.direction;
+
+	PointLight send_point_light_to_vram1;
+	send_point_light_to_vram1.Color = pointLight.Color;
+	send_point_light_to_vram1.Position = pointLight.Position;
+	send_point_light_to_vram1.Radius = pointLight.Radius;
+
+	SpotLight send_spot_light_to_vram1;
+	send_spot_light_to_vram1.Color = spotLight.Color;
+	send_spot_light_to_vram1.Radius = spotLight.Radius;
+	send_spot_light_to_vram1.Position = spotLight.Position;
+	send_spot_light_to_vram1.Direction = spotLight.Direction;
+
+	deviceContext->PSSetSamplers(0, 1, &samplerState);
+
+	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
+
+	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
+
+	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
+
+	DrawSkyBox();
+	DrawQuad();
+	DrawBox();
+	DrawFighter();	
+
+	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(skyboxConstantBuffer, 0, NULL, &send_skybox_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(quadConstantBuffer, 0, NULL, &quad_matrix_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(fighterConstantBuffer, 0, NULL, &send_fighter_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(geometryConstantBuffer, 0, NULL, &geometry_matrix_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(lightBuffer, 0, NULL, &send_directional_light_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(pointLightBuffer, 0, NULL, &send_point_light_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram1, 0, 0);
+
+	deviceContext->OMSetRenderTargets(1, &RTV, depthStencil);
+
+	DrawGeometry();
+
 	swapChain->Present(0, 0);
 
 	return true;
@@ -414,17 +576,24 @@ void Shutdown()
 	backBuffer->Release();	
 
 	cubeInputLayout->Release(); 
-	//SkyBoxInputLayOut->Release();
+	SkyBoxInputLayout->Release();
 	
 	cubeVertexShader->Release(); 
 	cubePixelShader->Release();
 
-	//skyboxPixelShader->Release();
-	//skyboxVertexShader->Release();
+	skyboxPixelShader->Release();
+	skyboxVertexShader->Release();
 
-	/*skyboxBuffer->Release();
+	geometryShader->Release();
+	geometryPixelShader->Release();
+
+	skyboxBuffer->Release();
 	skyboxConstantBuffer->Release();
-	skyboxIndexBuffer->Release();*/
+	skyboxIndexBuffer->Release();
+
+	geometryBuffer->Release();
+	geometryIndexBuffer->Release();
+	geometryConstantBuffer->Release();
 
 	fighterBuffer->Release();
 	fighterIndexBuffer->Release();
@@ -449,7 +618,7 @@ void Shutdown()
 	cubeTextureResources->Release();
 	fighterTextureResources->Release();	
 	quadTextureResources->Release();
-	//skyboxTextureResources->Release();
+	skyboxTextureResources->Release();
 }
 
 void BoxInit()
@@ -678,7 +847,7 @@ void PointLightInit()
 {
 	//point light init value
 	pointLight.Color.x = 0.0f;
-	pointLight.Color.y = 20.0f;
+	pointLight.Color.y = 5.0f;
 	pointLight.Color.z = 0.0f;
 	pointLight.Color.w = 0.0f;
 
@@ -764,6 +933,7 @@ void QuadInit()
 
 	// Creating Vertex Buffer
 	device->CreateBuffer(&quadBuffdesc, &data1, &quadBuffer);
+	device->CreateBuffer(&quadBuffdesc, &data1, &geometryBuffer);
 
 	// index buffer
 	quadBuffdesc.Usage = D3D11_USAGE_DEFAULT;
@@ -771,12 +941,16 @@ void QuadInit()
 	quadBuffdesc.ByteWidth = sizeof(UINT32) * 6;
 	data1.pSysMem = quadIndexes;
 	device->CreateBuffer(&quadBuffdesc, &data1, &quadIndexBuffer);
+	device->CreateBuffer(&quadBuffdesc, &data1, &geometryIndexBuffer);
 
 	// constant
 	quadBuffdesc.Usage = D3D11_USAGE_DEFAULT;
 	quadBuffdesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	quadBuffdesc.ByteWidth = sizeof(Matrix);
+
 	device->CreateBuffer(&quadBuffdesc, nullptr, &quadConstantBuffer);
+
+	device->CreateBuffer(&quadBuffdesc, nullptr, &geometryConstantBuffer);
 }
 
 void DrawQuad()
@@ -911,5 +1085,80 @@ void DrawSkyBox()
 	deviceContext->VSSetConstantBuffers(0, 1, &skyboxConstantBuffer);
 
 	deviceContext->DrawIndexed(36, 0, 0);
+}
+
+
+void DrawGeometry()
+{
+	unsigned int	strides = sizeof(Vert);
+	unsigned int	offsets = 0;
+
+	deviceContext->IASetVertexBuffers(0, 1, &geometryBuffer, &strides, &offsets);
+
+	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
+	
+	deviceContext->PSSetShader(geometryPixelShader, NULL, 0);
+
+	deviceContext->PSSetConstantBuffers(0, 1, &geometryConstantBuffer);
+
+	deviceContext->GSSetShader(geometryShader, NULL, 0);
+
+	deviceContext->GSSetConstantBuffers(0, 1, &geometryConstantBuffer);
+
+	deviceContext->PSSetShaderResources(0, 1, &shaderResourceViewMap);
+
+	deviceContext->IASetInputLayout(cubeInputLayout);
+
+	deviceContext->IASetIndexBuffer(geometryIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &geometryConstantBuffer);
+
+	deviceContext->Draw(1, 0);
+
+	deviceContext->GSSetShader(NULL, NULL, NULL);
+
+}
+
+void MapTextureInit()
+{
+
+	RECT rc;
+	GetClientRect(hWnd, &rc);
+	UINT width = rc.right;
+	UINT height = rc.bottom;
+
+	D3D11_TEXTURE2D_DESC textureDesc;
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+
+	ZeroMemory(&textureDesc, sizeof(textureDesc));
+
+	textureDesc.Width = width;
+	textureDesc.Height = height;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+	device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureMap);
+
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	device->CreateRenderTargetView(renderTargetTextureMap, &renderTargetViewDesc, &renderTargetViewMap);
+
+	shaderResourceViewDesc.Format = textureDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	device->CreateShaderResourceView(renderTargetTextureMap, &shaderResourceViewDesc, &shaderResourceViewMap);
 }
 
