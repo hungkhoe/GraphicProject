@@ -136,6 +136,11 @@ void CameraControl()
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 
+	if (GetAsyncKeyState(VK_CONTROL)) {
+		XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
+		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
+	}
+
 	if (GetAsyncKeyState('W')) {
 		XMMATRIX translate = XMMatrixTranslation(0, -0.001f, 0); // move up
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
@@ -152,12 +157,7 @@ void CameraControl()
 		XMMATRIX translate = XMMatrixTranslation(0.001f, 0, 0); // move left
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
-
-	if (GetAsyncKeyState(VK_CONTROL)) {
-		XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
-		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
-	}
-
+	
 	if (GetAsyncKeyState(VK_UP)) {
 		XMMATRIX rotation = XMMatrixRotationX(0.0001);
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate up
