@@ -32,6 +32,16 @@ ID3D11Buffer* quadBuffer;
 ID3D11Buffer* quadIndexBuffer;
 ID3D11Buffer* quadConstantBuffer;
 
+//sun planet
+ID3D11Buffer* sunBuffer;
+ID3D11Buffer* sunIndexBuffer;
+ID3D11Buffer* sunConstantBuffer;
+
+//moon planet
+ID3D11Buffer* moonBuffer;
+ID3D11Buffer* moonIndexBuffer;
+ID3D11Buffer* moonConstantBuffer;
+
 //shader
 ID3D11VertexShader* cubeVertexShader;
 ID3D11PixelShader*	cubePixelShader;
@@ -46,6 +56,11 @@ ID3D11PixelShader * geometryPixelShader;
 ID3D11Buffer * fighterBuffer;
 ID3D11Buffer * fighterIndexBuffer;
 ID3D11Buffer * fighterConstantBuffer;
+
+//spaceship stuff
+ID3D11Buffer * spaceShipBuffer;
+ID3D11Buffer * spaceShipIndexBuffer;
+ID3D11Buffer * spaceShipConstantBuffer;
 
 //geometry buffer
 ID3D11Buffer * geometryBuffer;
@@ -68,15 +83,19 @@ XMMATRIX FighterWorldMatrix;
 XMMATRIX QuadWorldMatrix;
 XMMATRIX SkyBoxMatrix;
 XMMATRIX GeometryMatrix;
+XMMATRIX spaceShipMatrix;
+XMMATRIX sunMatrix;
+XMMATRIX moonMatrix;
 
 XMMATRIX ViewMatrix;
 XMMATRIX GeoViewMatrix;
 XMMATRIX GeoProjectionMatrix;
 XMMATRIX ProjectionMatrix;
 
+
 //matrix
-XMVECTOR Eye = XMVectorSet(0.0f, 1.5f, -5.0f, 0.0f);
-XMVECTOR Focus = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+XMVECTOR Eye = XMVectorSet(0.0f, 8.5f, -15.0f, 0.0f);
+XMVECTOR Focus = XMVectorSet(0.0f, 4.0f, 0.0f, 0.0f);
 XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR ResetEye = Eye;
 
@@ -90,13 +109,14 @@ ID3D11DepthStencilView*	depthStencil;
 
 ID3D11SamplerState*	samplerState;
 
+//texture
 ID3D11ShaderResourceView * cubeTextureResources;
-
 ID3D11ShaderResourceView * fighterTextureResources;
-
 ID3D11ShaderResourceView * quadTextureResources;
-
 ID3D11ShaderResourceView * skyboxTextureResources;
+ID3D11ShaderResourceView * spaceShipTextureResources;
+ID3D11ShaderResourceView * sunTextureResources;
+ID3D11ShaderResourceView * moonTextureResources;
 
 //map stuff
 ID3D11Texture2D* renderTargetTextureMap;
@@ -106,6 +126,9 @@ ID3D11ShaderResourceView* shaderResourceViewMap;
 
 //Model
 Object fighter;
+Object spaceShip;
+Object sun;
+Object moon;
 
 float zoom = 2;
 float nearPlane = 0.1f;
@@ -124,6 +147,9 @@ void SkyBoxInit();
 void DrawSkyBox();
 void DrawGeometry();
 void MapTextureInit();
+void DrawSpaceShip();
+void DrawPlanet();
+void DrawMoon();
 
 void CameraControl()
 {
@@ -132,46 +158,46 @@ void CameraControl()
 	}
 
 	if (GetAsyncKeyState(VK_SHIFT)) {
-		XMMATRIX translate = XMMatrixTranslation(0, 0, -0.001f); //zoom
+		XMMATRIX translate = XMMatrixTranslation(0, 0, -0.005f); //zoom
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 
 	if (GetAsyncKeyState(VK_CONTROL)) {
-		XMMATRIX translate = XMMatrixTranslation(0, 0, 0.001f); //zoom out
+		XMMATRIX translate = XMMatrixTranslation(0, 0, 0.005f); //zoom out
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 
 	if (GetAsyncKeyState('W')) {
-		XMMATRIX translate = XMMatrixTranslation(0, -0.001f, 0); // move up
+		XMMATRIX translate = XMMatrixTranslation(0, -0.005f, 0); // move up
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 	if (GetAsyncKeyState('S')) {
-		XMMATRIX translate = XMMatrixTranslation(0, 0.001f, 0); // move down
+		XMMATRIX translate = XMMatrixTranslation(0, 0.005f, 0); // move down
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 	if (GetAsyncKeyState('D')) {
-		XMMATRIX translate = XMMatrixTranslation(-0.001f, 0, 0); // move right
+		XMMATRIX translate = XMMatrixTranslation(-0.005f, 0, 0); // move right
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 	if (GetAsyncKeyState('A')) {
-		XMMATRIX translate = XMMatrixTranslation(0.001f, 0, 0); // move left
+		XMMATRIX translate = XMMatrixTranslation(0.005f, 0, 0); // move left
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, translate);
 	}
 	
 	if (GetAsyncKeyState(VK_UP)) {
-		XMMATRIX rotation = XMMatrixRotationX(0.0001);
+		XMMATRIX rotation = XMMatrixRotationX(0.0005f);
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate up
 	}
 	if (GetAsyncKeyState(VK_DOWN)) {
-		XMMATRIX rotation = XMMatrixRotationX(-0.0001);
+		XMMATRIX rotation = XMMatrixRotationX(-0.0005f);
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate down
 	}
 	if (GetAsyncKeyState(VK_LEFT)) {
-		XMMATRIX rotation = XMMatrixRotationY(0.0001);
+		XMMATRIX rotation = XMMatrixRotationY(0.0005f);
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate left
 	}
 	if (GetAsyncKeyState(VK_RIGHT)) {
-		XMMATRIX rotation = XMMatrixRotationY(-0.0001);
+		XMMATRIX rotation = XMMatrixRotationY(-0.0005f);
 		ViewMatrix = XMMatrixMultiply(ViewMatrix, rotation); // rotate right
 	}
 
@@ -280,10 +306,13 @@ HRESULT SetUpBuffer() {
 	MapTextureInit();
 
 	// texture loading
-	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &cubeTextureResources);
-	CreateDDSTextureFromFile(device, L"SM_ch_E_Male_Body_Kyoshi.dds", NULL, &fighterTextureResources);
-	CreateDDSTextureFromFile(device, L"greendragon.dds", NULL, &quadTextureResources);
+	CreateDDSTextureFromFile(device, L"Box_Red2Dark.dds", NULL, &cubeTextureResources);
+	CreateDDSTextureFromFile(device, L"Spacesuit_D.dds", NULL, &fighterTextureResources);
+	CreateDDSTextureFromFile(device, L"swampfloor_seamless.dds", NULL, &quadTextureResources);
 	CreateDDSTextureFromFile(device, L"OutputCube.dds", NULL, &skyboxTextureResources);
+	CreateDDSTextureFromFile(device, L"gladiator.dds", NULL, &spaceShipTextureResources);
+	CreateDDSTextureFromFile(device, L"Sun.dds", NULL, &sunTextureResources);
+	CreateDDSTextureFromFile(device, L"newmoon.dds", NULL, &moonTextureResources);
 
 
 	//sampler state
@@ -332,7 +361,10 @@ HRESULT SetUpBuffer() {
 
 	//Init Object
 	BoxInit();
-	ObjectInit("FighterObject.obj",fighter,fighterBuffer,fighterIndexBuffer,fighterConstantBuffer);
+	ObjectInit("Astronaut.obj",fighter,fighterBuffer,fighterIndexBuffer,fighterConstantBuffer);
+	ObjectInit("talon.obj", spaceShip, spaceShipBuffer, spaceShipIndexBuffer, spaceShipConstantBuffer);
+	ObjectInit("moon2.obj", sun, sunBuffer, sunIndexBuffer, sunConstantBuffer);
+	ObjectInit("moon2.obj", moon, moonBuffer, moonIndexBuffer, moonConstantBuffer);
 	LightInit();
 	PointLightInit();
 	QuadInit();
@@ -352,9 +384,12 @@ HRESULT SetUpBuffer() {
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, translate);
 	FighterWorldMatrix = XMMatrixMultiply(FighterWorldMatrix, scale);
 
+	//rotation for fighter
+	FighterWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(-10.0f), FighterWorldMatrix);
+
 	//quad world matrix
 	XMMATRIX translate1 = XMMatrixTranslation(0, -1.0f, 0);
-	XMMATRIX scale1 = XMMatrixScaling(10.0f, 10.0f, 10.0f);
+	XMMATRIX scale1 = XMMatrixScaling(20.0f, 20.0f, 20.0f);
 	QuadWorldMatrix = XMMatrixIdentity();		
 	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, translate1);
 	QuadWorldMatrix = XMMatrixMultiply(QuadWorldMatrix, scale1);
@@ -365,9 +400,31 @@ HRESULT SetUpBuffer() {
 	// geometry worldmatrix
 	GeometryMatrix = XMMatrixIdentity();
 
+	//sun matrix
+	XMMATRIX translate2 = XMMatrixTranslation(0, 20, 20);
+	XMMATRIX scale2 = XMMatrixScaling(1, 1, 1);
+	sunMatrix = XMMatrixIdentity();
+	sunMatrix = XMMatrixMultiply(sunMatrix, translate2);
+	sunMatrix = XMMatrixMultiply(sunMatrix, scale2);
+
+	// moon matrix
+	XMMATRIX translate4 = XMMatrixTranslation(40, 20, 100);
+	XMMATRIX scale4 = XMMatrixScaling(0.5, 0.5, 0.5);
+	moonMatrix = XMMatrixIdentity();
+	moonMatrix = XMMatrixMultiply(moonMatrix, translate4);
+	moonMatrix = XMMatrixMultiply(moonMatrix, scale4);
+
+	//space ship worldMatrix
+	XMMATRIX translate3 = XMMatrixTranslation(1, 0.5f, 0); // move right
+	XMMATRIX scale3 = XMMatrixScaling(5, 5,5);
+	spaceShipMatrix = XMMatrixIdentity();
+	spaceShipMatrix = XMMatrixMultiply(spaceShipMatrix, translate3);
+	spaceShipMatrix = XMMatrixMultiply(spaceShipMatrix, scale3);
+	spaceShipMatrix = XMMatrixMultiply(XMMatrixRotationY(-9.0f), spaceShipMatrix);
+
 	// view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
-	GeoViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f), Focus, Up);
+	GeoViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), Up);
 	
 	//projection matrix
 	GeoProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
@@ -397,9 +454,19 @@ bool Render() {
 	//rotation for cube
 	CubeWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f), CubeWorldMatrix);
 
-	//rotation for fighter
-    FighterWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f),FighterWorldMatrix);
+	//sun rotation
+	sunMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0003f),sunMatrix);	
 
+	//moon orbit
+	moonMatrix = XMMatrixMultiply(XMMatrixTranslation(30 ,30, -30),sunMatrix);
+
+	moonMatrix = XMMatrixMultiply(moonMatrix,XMMatrixTranslation(0, 0, 30));
+
+	moonMatrix = XMMatrixMultiply(moonMatrix, XMMatrixScaling(0.45, 0.45, 0.45));
+
+	moonMatrix = XMMatrixMultiply(XMMatrixRotationY(t*2),moonMatrix);	
+
+	//render
 	deviceContext->ClearRenderTargetView(RTV, Colors::DarkCyan);
 
 	deviceContext->ClearRenderTargetView(renderTargetViewMap, Colors::DarkCyan);
@@ -417,6 +484,22 @@ bool Render() {
 	send_matrix_to_vram.World = XMMatrixTranspose(CubeWorldMatrix);
 	send_matrix_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
 	send_matrix_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
+
+	Matrix send_planet_to_vram;
+	send_planet_to_vram.World = XMMatrixTranspose(sunMatrix);
+	send_planet_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_planet_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
+
+	Matrix send_moon_to_vram;
+	send_moon_to_vram.World = XMMatrixTranspose(moonMatrix);
+	send_moon_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_moon_to_vram.Projection = XMMatrixTranspose(GeoProjectionMatrix);
+
+	//send spaceship to vram
+	Matrix send_spaceShip_to_vram;
+	send_spaceShip_to_vram.World = XMMatrixTranspose(spaceShipMatrix);
+	send_spaceShip_to_vram.View = XMMatrixTranspose(GeoViewMatrix);
+	send_spaceShip_to_vram.Projection = XMMatrixTranspose(ProjectionMatrix);
 
 	//send skybox matrix to vram
 	Matrix send_skybox_to_vram;
@@ -464,6 +547,9 @@ bool Render() {
 	DrawFighter();
 	DrawQuad();
 	DrawSkyBox();		
+	DrawSpaceShip();
+	DrawPlanet();
+	DrawMoon();
 
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram, 0, 0);
 
@@ -481,6 +567,11 @@ bool Render() {
 
 	deviceContext->UpdateSubresource(geometryConstantBuffer, 0, NULL, &geometry_matrix_to_vram, 0, 0);
 
+	deviceContext->UpdateSubresource(spaceShipConstantBuffer, 0, NULL, &send_spaceShip_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(sunConstantBuffer, 0, NULL, &send_planet_to_vram, 0, 0);
+
+	deviceContext->UpdateSubresource(moonConstantBuffer, 0, NULL, &send_moon_to_vram, 0, 0);
 
 	deviceContext->OMSetRenderTargets(1, &RTV, NULL);
 	ID3D11ShaderResourceView * temp = nullptr;
@@ -492,6 +583,23 @@ bool Render() {
 	send_matrix_to_vram1.World = XMMatrixTranspose(CubeWorldMatrix);
 	send_matrix_to_vram1.View = XMMatrixTranspose(ViewMatrix);
 	send_matrix_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	//send spaceship matrix to vram
+	Matrix send_spaceShip_to_vram1;
+	send_spaceShip_to_vram1.World = XMMatrixTranspose(spaceShipMatrix);
+	send_spaceShip_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_spaceShip_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+
+	Matrix send_moon_to_vram1;
+	send_moon_to_vram1.World = XMMatrixTranspose(moonMatrix);
+	send_moon_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_moon_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
+	
+	//send planet to vram
+	Matrix send_planet_to_vram1;
+	send_planet_to_vram1.World = XMMatrixTranspose(sunMatrix);
+	send_planet_to_vram1.View = XMMatrixTranspose(ViewMatrix);
+	send_planet_to_vram1.Projection = XMMatrixTranspose(ProjectionMatrix);
 
 	//send skybox matrix to vram
 	Matrix send_skybox_to_vram1;
@@ -544,6 +652,9 @@ bool Render() {
 	DrawQuad();
 	DrawBox();
 	DrawFighter();	
+	DrawSpaceShip();
+	DrawPlanet();
+	DrawMoon();
 
 	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram1, 0, 0);
 
@@ -560,6 +671,12 @@ bool Render() {
 	deviceContext->UpdateSubresource(pointLightBuffer, 0, NULL, &send_point_light_to_vram1, 0, 0);
 
 	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(spaceShipConstantBuffer, 0, NULL, &send_spaceShip_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(sunConstantBuffer, 0, NULL, &send_planet_to_vram1, 0, 0);
+
+	deviceContext->UpdateSubresource(moonConstantBuffer, 0, NULL, &send_moon_to_vram1, 0, 0);
 
 	deviceContext->OMSetRenderTargets(1, &RTV, depthStencil);
 
@@ -599,6 +716,11 @@ void Shutdown()
 	fighterIndexBuffer->Release();
 	fighterConstantBuffer->Release();
 
+	spaceShipBuffer->Release();
+	spaceShipIndexBuffer->Release();
+	spaceShipConstantBuffer->Release();
+	spaceShipTextureResources->Release();
+
 	cubeBuffer->Release();
 	cubeIndexBuffer->Release();
 	cubeConstantBuffer->Release();
@@ -619,6 +741,16 @@ void Shutdown()
 	fighterTextureResources->Release();	
 	quadTextureResources->Release();
 	skyboxTextureResources->Release();
+
+	sunBuffer->Release();
+	sunConstantBuffer->Release();
+	sunIndexBuffer->Release();
+	sunTextureResources->Release();
+
+	moonBuffer->Release();
+	moonConstantBuffer->Release();
+	moonIndexBuffer->Release();
+	moonTextureResources->Release();
 }
 
 void BoxInit()
@@ -748,7 +880,7 @@ void ObjectInit(const char * filename, Object & model, ID3D11Buffer *& modelBuff
 	unsigned int * indicies = new unsigned int[count];
 
 	for (unsigned int i = 0; i < model.GetModel().size(); i++)
-		vertices[i] = fighter.GetModel()[i];
+		vertices[i] = model.GetModel()[i];
 
 	for (unsigned int i = 0; i < model.GetIndex().size(); i++)
 		indicies[i] = model.GetIndex()[i];
@@ -821,9 +953,9 @@ void LightInit()
 {
 	//directional light init value
 
-	directionalLight.color.x = 5.0f;
+	directionalLight.color.x = 0.0f;
 	directionalLight.color.y = 0.0f;
-	directionalLight.color.z = 0.0f;
+	directionalLight.color.z = 50.0f;
 	directionalLight.color.w = 1.0f;
 
 	directionalLight.direction.x = 1.0f;
@@ -876,9 +1008,9 @@ void SpotLightInit()
 	spotLight.Position.z = 0; 
 	spotLight.Position.w = 0;
 
-	spotLight.Color.x = 5; 
-	spotLight.Color.y = 5; 
-	spotLight.Color.z = 5;
+	spotLight.Color.x = 25; 
+	spotLight.Color.y = 25; 
+	spotLight.Color.z = 25;
 	spotLight.Color.w = 1;
 
 	spotLight.Direction.x = -0.4f; 
@@ -1087,6 +1219,53 @@ void DrawSkyBox()
 	deviceContext->DrawIndexed(36, 0, 0);
 }
 
+void DrawSpaceShip()
+{
+	unsigned int	strides = sizeof(Vert);
+	unsigned int	offsets = 0;
+
+	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
+
+	deviceContext->PSSetShader(cubePixelShader, NULL, 0);
+
+	deviceContext->IASetVertexBuffers(0, 1, &spaceShipBuffer, &strides, &offsets);
+
+	deviceContext->PSSetShaderResources(0, 1, &spaceShipTextureResources);
+
+	deviceContext->IASetIndexBuffer(spaceShipIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetInputLayout(cubeInputLayout);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &spaceShipConstantBuffer);
+
+	deviceContext->DrawIndexed(spaceShip.GetIndex().size(), 0, 0);
+}
+
+void DrawPlanet()
+{
+	unsigned int	strides = sizeof(Vert);
+	unsigned int	offsets = 0;
+
+	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
+
+	deviceContext->PSSetShader(geometryPixelShader, NULL, 0);
+
+	deviceContext->IASetVertexBuffers(0, 1, &sunBuffer, &strides, &offsets);
+
+	deviceContext->PSSetShaderResources(0, 1, &sunTextureResources);
+
+	deviceContext->IASetIndexBuffer(sunIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetInputLayout(cubeInputLayout);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &sunConstantBuffer);
+
+	deviceContext->DrawIndexed(sun.GetIndex().size(), 0, 0);
+}
 
 void DrawGeometry()
 {
@@ -1162,3 +1341,31 @@ void MapTextureInit()
 	device->CreateShaderResourceView(renderTargetTextureMap, &shaderResourceViewDesc, &shaderResourceViewMap);
 }
 
+void SpotLightControl()
+{
+
+}
+
+void DrawMoon()
+{
+	unsigned int	strides = sizeof(Vert);
+	unsigned int	offsets = 0;
+
+	deviceContext->VSSetShader(cubeVertexShader, NULL, 0);
+
+	deviceContext->PSSetShader(geometryPixelShader, NULL, 0);
+
+	deviceContext->IASetVertexBuffers(0, 1, &moonBuffer, &strides, &offsets);
+
+	deviceContext->PSSetShaderResources(0, 1, &moonTextureResources);
+
+	deviceContext->IASetIndexBuffer(moonIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	deviceContext->IASetInputLayout(cubeInputLayout);
+
+	deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	deviceContext->VSSetConstantBuffers(0, 1, &moonConstantBuffer);
+
+	deviceContext->DrawIndexed(moon.GetIndex().size(), 0, 0);
+}
