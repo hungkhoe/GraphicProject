@@ -34,6 +34,9 @@ Box is hard coded cube
 
 Mini map on the left is redering texture to object and object is a geometry shader object
 
+After adding multi screen/ my render to texture got split into half and I dont know how to fix so I just leave like that. 
+I hope you forgive that because I tried my best to get the split screen but I dont know it will screw up my render to texture
+
 ///////////////////Light
 
 Directional light is Blue X = 1, y = 0 , z = 0
