@@ -92,8 +92,6 @@ XMMATRIX GeoViewMatrix;
 XMMATRIX GeoProjectionMatrix;
 XMMATRIX ProjectionMatrix;
 
-XMMATRIX ProjectionMatrix2;
-XMMATRIX ViewMatrix2;
 
 //matrix
 XMVECTOR Eye = XMVectorSet(0.0f, 8.5f, -15.0f, 0.0f);
@@ -298,18 +296,18 @@ HRESULT SetUpBuffer() {
 
 	// viewport
 	ViewPort[0].Width = static_cast<float>(width)*0.5f;
-	ViewPort[0].Height = static_cast<float>(height);
+	ViewPort[0].Height = static_cast<float>(height)*0.5f;
 	ViewPort[0].MinDepth = 0.0f;
 	ViewPort[0].MaxDepth = 1.0f;
 	ViewPort[0].TopLeftX = 0;
 	ViewPort[0].TopLeftY = 0;	
 
-	ViewPort[1].Width = static_cast<float>(width);
-	ViewPort[1].Height = static_cast<float>(height);
-	ViewPort[1].MinDepth = 0.0f;
-	ViewPort[1].MaxDepth = 1.0f;
-	ViewPort[1].TopLeftX = static_cast<float>(width) *0.5f;
-	ViewPort[1].TopLeftY = 0;
+	ViewPort.Width = static_cast<float>(width);
+	ViewPort.Height = static_cast<float>(height);
+	ViewPort.MinDepth = 0.0f;
+	ViewPort.MaxDepth = 1.0f;
+	ViewPort.TopLeftX = 0;
+	ViewPort.TopLeftY = 0;
 
 	//map mini
 	MapTextureInit();
@@ -434,11 +432,9 @@ HRESULT SetUpBuffer() {
 	// view matrix
 	ViewMatrix = XMMatrixLookAtLH(Eye, Focus, Up);
 	GeoViewMatrix = XMMatrixLookAtLH(XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f), XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), Up);
-	ViewMatrix2 =  XMMatrixLookAtLH(XMVectorSet(0.0f, 0.5f, 5.0f, 0.0f), Focus, Up);
-
+	
 	//projection matrix
 	GeoProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
-	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
 	return S_OK;
 }
 
@@ -460,7 +456,7 @@ bool Render() {
 
 	deviceContext->OMSetRenderTargets(1, &RTV, depthStencil);
 
-	deviceContext->RSSetViewports(1, &ViewPort[0]);
+	deviceContext->RSSetViewports(1, &ViewPort);
 
 	//rotation for cube
 	CubeWorldMatrix = XMMatrixMultiply(XMMatrixRotationY(0.0001f), CubeWorldMatrix);
@@ -489,8 +485,6 @@ bool Render() {
 	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
 
 	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
-
-
 	
 	//send cube matrix to vram
 	Matrix send_matrix_to_vram;
@@ -578,14 +572,13 @@ bool Render() {
 
 	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram, 0, 0);
 
-	//deviceContext->UpdateSubresource(geometryConstantBuffer, 0, NULL, &geometry_matrix_to_vram, 0, 0);
+	deviceContext->UpdateSubresource(geometryConstantBuffer, 0, NULL, &geometry_matrix_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(spaceShipConstantBuffer, 0, NULL, &send_spaceShip_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(sunConstantBuffer, 0, NULL, &send_planet_to_vram, 0, 0);
 
 	deviceContext->UpdateSubresource(moonConstantBuffer, 0, NULL, &send_moon_to_vram, 0, 0);
-
 
 	deviceContext->OMSetRenderTargets(1, &RTV, NULL);
 	ID3D11ShaderResourceView * temp = nullptr;
@@ -694,109 +687,10 @@ bool Render() {
 
 	deviceContext->OMSetRenderTargets(1, &RTV, depthStencil);
 
-	deviceContext->RSSetViewports(1, &ViewPort[1]);
-
-	Matrix send_matrix_to_vram3;
-	send_matrix_to_vram3.World = XMMatrixTranspose(CubeWorldMatrix);
-	send_matrix_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_matrix_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	Matrix send_planet_to_vram3;
-	send_planet_to_vram3.World = XMMatrixTranspose(sunMatrix);
-	send_planet_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_planet_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	Matrix send_moon_to_vram3;
-	send_moon_to_vram3.World = XMMatrixTranspose(moonMatrix);
-	send_moon_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_moon_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	//send spaceship to vram
-	Matrix send_spaceShip_to_vram3;
-	send_spaceShip_to_vram3.World = XMMatrixTranspose(spaceShipMatrix);
-	send_spaceShip_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_spaceShip_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	//send skybox matrix to vram
-	Matrix send_skybox_to_vram3;
-	send_skybox_to_vram3.World = XMMatrixTranspose(SkyBoxMatrix);
-	send_skybox_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_skybox_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	//send quad to vram
-	Matrix quad_matrix_to_vram3;
-	quad_matrix_to_vram3.World = XMMatrixTranspose(QuadWorldMatrix);
-	quad_matrix_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	quad_matrix_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	//send geometry to vram
-	Matrix geometry_matrix_to_vram3;
-	geometry_matrix_to_vram3.World = XMMatrixTranspose(GeometryMatrix);
-	geometry_matrix_to_vram3.View = XMMatrixTranspose(GeoViewMatrix);
-	geometry_matrix_to_vram3.Projection = XMMatrixTranspose(GeoProjectionMatrix);
-
-	//send fighter matrix to vram
-	Matrix send_fighter_to_vram3;
-	send_fighter_to_vram3.World = XMMatrixTranspose(FighterWorldMatrix);
-	send_fighter_to_vram3.View = XMMatrixTranspose(ViewMatrix2);
-	send_fighter_to_vram3.Projection = XMMatrixTranspose(ProjectionMatrix2);
-
-	DirectionalLight send_directional_light_to_vram3;
-	send_directional_light_to_vram3.color = directionalLight.color;
-	send_directional_light_to_vram3.direction = directionalLight.direction;
-
-	PointLight send_point_light_to_vram3;
-	send_point_light_to_vram3.Color = pointLight.Color;
-	send_point_light_to_vram3.Position = pointLight.Position;
-	send_point_light_to_vram3.Radius = pointLight.Radius;
-
-	SpotLight send_spot_light_to_vram3;
-	send_spot_light_to_vram3.Color = spotLight.Color;
-	send_spot_light_to_vram3.Radius = spotLight.Radius;
-	send_spot_light_to_vram3.Position = spotLight.Position;
-	send_spot_light_to_vram3.Direction = spotLight.Direction;
-
-	deviceContext->PSSetSamplers(0, 1, &samplerState);
-
-	deviceContext->PSSetConstantBuffers(0, 1, &lightBuffer);
-
-	deviceContext->PSSetConstantBuffers(1, 1, &pointLightBuffer);
-
-	deviceContext->PSSetConstantBuffers(2, 1, &spotLightBuffer);
-	//Draw
-
-	DrawBox();
-	DrawFighter();
-	DrawQuad();
-	DrawSkyBox();
-	DrawSpaceShip();
-	DrawPlanet();
-	DrawMoon();
-
-	deviceContext->UpdateSubresource(cubeConstantBuffer, 0, NULL, &send_matrix_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(skyboxConstantBuffer, 0, NULL, &send_skybox_to_vram3, 0, 0);
-	
-	deviceContext->UpdateSubresource(quadConstantBuffer, 0, NULL, &quad_matrix_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(fighterConstantBuffer, 0, NULL, &send_fighter_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(lightBuffer, 0, NULL, &send_directional_light_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(pointLightBuffer, 0, NULL, &send_point_light_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(spotLightBuffer, 0, NULL, &send_spot_light_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(spaceShipConstantBuffer, 0, NULL, &send_spaceShip_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(sunConstantBuffer, 0, NULL, &send_planet_to_vram3, 0, 0);
-
-	deviceContext->UpdateSubresource(moonConstantBuffer, 0, NULL, &send_moon_to_vram3, 0, 0);
-
-	
 	DrawGeometry();
 
 	swapChain->Present(0, 0);
+
 	return true;
 }
 
