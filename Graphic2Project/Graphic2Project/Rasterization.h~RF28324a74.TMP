@@ -152,7 +152,7 @@ void MapTextureInit();
 void DrawSpaceShip();
 void DrawPlanet();
 void DrawMoon();
-void WindowChange();
+
 void CameraControl()
 {
 	if (GetAsyncKeyState(VK_F1)) {
@@ -439,7 +439,6 @@ HRESULT SetUpBuffer() {
 	//projection matrix
 	GeoProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
 	ProjectionMatrix2 = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
-	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2, SCREENWIDTH / static_cast<float>(SCREENHEIGHT), nearPlane, farPlane);
 	return S_OK;
 }
 
@@ -448,7 +447,6 @@ HRESULT SetUpBuffer() {
 // Constant Frame Rendering
 //----------------------------------------------------------------------------------------------------------
 bool Render() {	
-	WindowChange();
 
 	// Time Per Frame
 	static float t = 0.0f;
@@ -1487,7 +1485,7 @@ void DrawMoon()
 
 void WindowChange()
 {
-	HWND hwnd1;
+	/*HWND hwnd1;
 	RECT rect1;
 	GetClientRect(hWnd, &rect1);
 	UINT width = rect1.right;
@@ -1495,6 +1493,6 @@ void WindowChange()
 
 	ProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / zoom, width / static_cast<float>(height), nearPlane, farPlane);
 	GeoProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / zoom, width / static_cast<float>(height), nearPlane, farPlane);
-	ProjectionMatrix2 =  XMMatrixPerspectiveFovLH(XM_PI / zoom, width / static_cast<float>(height), nearPlane, farPlane);
+	ProjectionMatrix2 =  XMMatrixPerspectiveFovLH(XM_PI / zoom, width / static_cast<float>(height), nearPlane, farPlane);*/
 
 }
