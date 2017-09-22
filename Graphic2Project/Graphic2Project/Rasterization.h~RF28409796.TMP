@@ -132,14 +132,6 @@ Object spaceShip;
 Object sun;
 Object moon;
 
-//bool for light
-bool pointLightMode;
-bool directionalLightMode;
-bool spotLightMode;	
-
-int mode = 0;
-int mode1 = 0;
-
 float zoom = 2;
 float nearPlane = 0.1f;
 float farPlane = 250.0f;
@@ -161,12 +153,9 @@ void DrawSpaceShip();
 void DrawPlanet();
 void DrawMoon();
 void WindowChange();
-void LightMovement();
-
-
 void CameraControl()
 {
-	if (GetAsyncKeyState('R')) {
+	if (GetAsyncKeyState(VK_F1)) {
 		ViewMatrix = XMMatrixLookAtLH(ResetEye, Focus, Up); //reset
 	}
 
@@ -460,7 +449,6 @@ HRESULT SetUpBuffer() {
 //----------------------------------------------------------------------------------------------------------
 bool Render() {	
 	WindowChange();
-	LightMovement();
 
 	// Time Per Frame
 	static float t = 0.0f;
@@ -1106,7 +1094,7 @@ void PointLightInit()
 {
 	//point light init value
 	pointLight.Color.x = 0.0f;
-	pointLight.Color.y = 10.0f;
+	pointLight.Color.y = 5.0f;
 	pointLight.Color.z = 0.0f;
 	pointLight.Color.w = 0.0f;
 
@@ -1468,142 +1456,9 @@ void MapTextureInit()
 	device->CreateShaderResourceView(renderTargetTextureMap, &shaderResourceViewDesc, &shaderResourceViewMap);
 }
 
-void LightMovement()
+void SpotLightControl()
 {
-	if (GetAsyncKeyState(VK_F1)) // directional light
-	{
-		directionalLightMode = true;
-		pointLightMode = false;
-		spotLightMode = false;
-	}
 
-	if (GetAsyncKeyState(VK_F2)) // point light
-	{
-		directionalLightMode = false;
-		pointLightMode = true;
-		spotLightMode = false;
-	}
-
-	if (GetAsyncKeyState(VK_F3)) // spot light
-	{
-		directionalLightMode = false;
-		pointLightMode = false;
-		spotLightMode = true;
-	}
-
-	if (directionalLightMode == true)
-	{
-		if (GetAsyncKeyState(VK_TAB) & 0x1) {
-			if (mode == 0) {
-				directionalLight.direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-				mode++;
-			}
-			else if (mode == 1) {
-				directionalLight.direction = XMFLOAT3(1.0f, 0.0f, 0.0f);
-				mode++;
-			}
-			else if (mode == 2) {
-				directionalLight.direction = XMFLOAT3(0.0f, 0.0f, -1.0f);
-				mode++;
-			}
-			else if (mode == 3) {
-				directionalLight.direction = XMFLOAT3(0.0f, -1.0f, 0.0f);
-				mode++;
-			}
-			else if (mode == 4) {
-				directionalLight.direction = XMFLOAT3(0.0f, 1.0f, 0.0f);
-				mode++;
-			}
-			else if (mode == 5) {
-				directionalLight.direction = XMFLOAT3(-1.0f, 0.0f, 0.0f);
-				mode = 0;
-			}
-		}
-	}
-
-	if (spotLightMode == true)
-	{
-		if (GetAsyncKeyState(VK_TAB) & 0x1) {
-			if (mode1 == 0) {
-				spotLight.Direction = XMFLOAT4(0.0f, 0.0f, 1.0f, 0.0f);
-				mode1++;
-			}
-			else if (mode1 == 1) {
-				spotLight.Direction = XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f);
-				mode1++;
-			}
-			else if (mode1 == 2) {
-				spotLight.Direction = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-				mode1++;
-			}
-			else if (mode1 == 3) {
-				spotLight.Direction = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-				mode1++;
-			}
-			else if (mode1 == 4) {
-				spotLight.Direction = XMFLOAT4(0.0f, 1.0f, 0.0f, 0.0f);
-				mode1++;
-			}
-			else if (mode1 == 5) {
-				spotLight.Direction = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-				mode1 = 0;
-			}
-		}
-
-		if (GetAsyncKeyState(VK_NUMPAD4))
-		{
-			spotLight.Position.x -= 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD6))
-		{
-			spotLight.Position.x += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD8))
-		{
-			spotLight.Position.z += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD2))
-		{
-			spotLight.Position.z -= 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD7))
-		{
-			spotLight.Position.y += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD9))
-		{
-			spotLight.Position.y -= 0.005;
-		}
-	}
-
-	if (pointLightMode == true)
-	{
-		if (GetAsyncKeyState(VK_NUMPAD4))
-		{
-			pointLight.Position.x -= 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD6))
-		{
-			pointLight.Position.x += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD8))
-		{
-			pointLight.Position.z += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD2))
-		{
-			pointLight.Position.z -= 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD7))
-		{
-			pointLight.Position.y += 0.005;
-		}
-		if (GetAsyncKeyState(VK_NUMPAD9))
-		{
-			pointLight.Position.y -= 0.005;
-		}
-	}
-	
 }
 
 void DrawMoon()

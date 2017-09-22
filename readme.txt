@@ -1,6 +1,6 @@
 ////////////////Camera Control
 
-F1 to reset using Look Up 
+R to reset using Look Up 
 
 Shift to translate foward
 
@@ -44,3 +44,27 @@ Directional light is Blue X = 1, y = 0 , z = 0
 Point Light is Green. X = 0, y = 3 , z = -2;
 
 Spot Light is white . Postion : x = 2.5 , y = 5, z =0. Direction x = -0.4f , y = -1.0f
+
+//////////////////Light Movement
+F1 for directional light mode
+F2 for point light mode
+F3 for spot light mode
+
+// Directional Light Mode
+TAB = changing different direction. 5 direction in total
+// Point light mode
+NUMPAD 4 to move left
+NUMPAD 6 to move right
+NUMPAD 8 to move further in z
+NUMPAD 2 to move closer in z
+NUMPAD 7 to move up in y
+NUMPAD 9 to move down in y
+
+// Spot light mode
+TAB == chaging different direction
+NUMPAD 4 to move left
+NUMPAD 6 to move right
+NUMPAD 8 to move further in z
+NUMPAD 2 to move closer in z
+NUMPAD 7 to move up in y
+NUMPAD 9 to move down in y
